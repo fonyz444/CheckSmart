@@ -1,0 +1,49 @@
+/// Core constants for the CheckSmart.kz application
+library;
+
+/// Default currency for Kazakhstan
+const String kDefaultCurrency = 'KZT';
+const String kCurrencySymbol = '₸';
+
+/// Hive box names for local storage
+abstract class HiveBoxes {
+  static const String transactions = 'transactions_box';
+  static const String settings = 'settings_box';
+}
+
+/// Hive type IDs for type adapters
+abstract class HiveTypeIds {
+  static const int transaction = 0;
+  static const int receiptSource = 1;
+  static const int category = 2;
+}
+
+/// Default expense categories for Kazakhstan market
+enum ExpenseCategory {
+  food('Продукты', '🍔'),
+  transport('Транспорт', '🚗'),
+  utilities('Коммуналка', '💡'),
+  shopping('Покупки', '🛒'),
+  entertainment('Развлечения', '🎬'),
+  health('Здоровье', '💊'),
+  education('Образование', '📚'),
+  transfer('Переводы', '💸'),
+  other('Другое', '📦');
+
+  final String displayName;
+  final String emoji;
+
+  const ExpenseCategory(this.displayName, this.emoji);
+}
+
+/// Source of the receipt/transaction
+enum ReceiptSource {
+  camera('Камера'),
+  pdfKaspi('Kaspi PDF'),
+  pdfHalyk('Halyk PDF'),
+  manual('Вручную');
+
+  final String displayName;
+
+  const ReceiptSource(this.displayName);
+}

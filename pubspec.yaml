@@ -1,0 +1,56 @@
+name: checksmart
+description: "CheckSmart.kz - Offline expense tracker for Kazakhstan with OCR receipt parsing"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.0-0
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # OCR & PDF Processing
+  google_mlkit_text_recognition: ^0.14.0
+  pdfx: ^2.6.0
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.2.2
+
+  # File & Image Handling
+  image_picker: ^1.1.2
+  file_picker: ^8.1.7
+  path_provider: ^2.1.5
+
+  # AI/ML (for future categorization)
+  tflite_flutter: ^0.11.0
+
+  # UI & Charts
+  community_charts_flutter: ^1.0.2
+
+  # Utilities
+  intl: ^0.20.1
+  uuid: ^4.5.1
+  equatable: ^2.0.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # Tesseract OCR configuration
+    - assets/tessdata_config.json
+    # Tesseract OCR trained data files
+    # Download from: https://github.com/tesseract-ocr/tessdata
+    - assets/tessdata/
+
