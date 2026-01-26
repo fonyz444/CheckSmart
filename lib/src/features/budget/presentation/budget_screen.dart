@@ -21,24 +21,27 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: const Color(0xFFF5F5F7),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: const Color(0xFFF5F5F7),
         title: const Text(
           'Бюджет',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
           TextButton.icon(
             onPressed: () => setState(() => _isEditing = !_isEditing),
             icon: Icon(
               _isEditing ? Icons.check : Icons.edit,
-              color: const Color(0xFF00D09C),
+              color: const Color(0xFF6C5CE7),
               size: 20,
             ),
             label: Text(
               _isEditing ? 'Готово' : 'Изменить',
-              style: const TextStyle(color: Color(0xFF00D09C)),
+              style: const TextStyle(color: Color(0xFF6C5CE7)),
             ),
           ),
         ],
@@ -57,19 +60,21 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
 class _BudgetProgressView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final repository = ref.watch(budgetLimitRepositoryProvider);
+    final progressAsync = ref.watch(budgetProgressProvider);
 
-    return FutureBuilder<List<BudgetProgress>>(
-      future: repository.getAllProgress(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF00D09C)),
-          );
-        }
-
-        final progressList = snapshot.data ?? [];
-
+    return progressAsync.when(
+      loading:
+          () => const Center(
+            child: CircularProgressIndicator(color: Color(0xFF6C5CE7)),
+          ),
+      error:
+          (error, stack) => Center(
+            child: Text(
+              'Ошибка: $error',
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+      data: (progressList) {
         if (progressList.isEmpty) {
           return Center(
             child: Column(
@@ -78,38 +83,233 @@ class _BudgetProgressView extends ConsumerWidget {
                 Icon(
                   Icons.account_balance_wallet_outlined,
                   size: 64,
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: const Color(0xFF9CA3AF),
                 ),
                 const SizedBox(height: 16),
-                Text(
+                const Text(
                   'Нет установленных лимитов',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 16),
                 ),
                 const SizedBox(height: 8),
-                Text(
+                const Text(
                   'Нажмите "Изменить" чтобы добавить',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
                 ),
               ],
             ),
           );
         }
 
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: progressList.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            return BudgetProgressCard(progress: progressList[index]);
-          },
+        // Calculate totals
+        final totalBudgeted = progressList.fold<double>(
+          0,
+          (sum, p) => sum + p.limit.limitAmount,
+        );
+        final totalLeft = progressList.fold<double>(
+          0,
+          (sum, p) => sum + p.remaining,
+        );
+
+        // Get date range for weekly (current week)
+        final now = DateTime.now();
+        final weekStart = now.subtract(Duration(days: now.weekday - 1));
+        final weekEnd = weekStart.add(const Duration(days: 6));
+        final daysLeft = weekEnd.difference(now).inDays;
+
+        return CustomScrollView(
+          slivers: [
+            // Weekly Budget Section
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Section header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Weekly Budget',
+                          style: TextStyle(
+                            color: Color(0xFF1A1A1A),
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '$daysLeft days left',
+                          style: const TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${_formatDate(weekStart)} - ${_formatDate(weekEnd)}',
+                      style: const TextStyle(
+                        color: Color(0xFF9CA3AF),
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Total budgeted and left
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _SummaryCard(
+                            label: 'Budgeted',
+                            amount: totalBudgeted,
+                            color: const Color(0xFF6B7280),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _SummaryCard(
+                            label: 'Left',
+                            amount: totalLeft,
+                            color:
+                                totalLeft >= 0
+                                    ? const Color(0xFF4CAF50)
+                                    : Colors.red[600]!,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+
+            // Category list
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  return BudgetProgressCard(progress: progressList[index]);
+                }, childCount: progressList.length),
+              ),
+            ),
+
+            // Action buttons
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    // Add new category button
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          // Navigate to edit mode or show dialog
+                        },
+                        icon: const Icon(Icons.add, color: Color(0xFF6C5CE7)),
+                        label: const Text(
+                          'Add new category',
+                          style: TextStyle(color: Color(0xFF6C5CE7)),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: const BorderSide(color: Color(0xFF6C5CE7)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Hidden categories link
+                    TextButton(
+                      onPressed: () {
+                        // Show hidden categories
+                      },
+                      child: const Text(
+                        'Hidden categories',
+                        style: TextStyle(
+                          color: Color(0xFF9CA3AF),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 100), // Bottom padding for nav
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       },
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}';
+  }
+}
+
+/// Summary card for budgeted/left totals
+class _SummaryCard extends StatelessWidget {
+  final String label;
+  final double amount;
+  final Color color;
+
+  const _SummaryCard({
+    required this.label,
+    required this.amount,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${amount.toStringAsFixed(0)} ₸',
+            style: TextStyle(
+              color: color,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -127,11 +327,15 @@ class _BudgetEditView extends ConsumerStatefulWidget {
 class _BudgetEditViewState extends ConsumerState<_BudgetEditView> {
   final Map<ExpenseCategory, TextEditingController> _controllers = {};
   final Map<ExpenseCategory, BudgetPeriod> _periods = {};
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    _initControllers();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initControllers();
+      _initialized = true;
+    }
   }
 
   void _initControllers() {
@@ -209,7 +413,7 @@ class _BudgetEditViewState extends ConsumerState<_BudgetEditView> {
               child: ElevatedButton(
                 onPressed: _saveAll,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00D09C),
+                  backgroundColor: const Color(0xFF6C5CE7),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -248,8 +452,15 @@ class _CategoryLimitTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -265,7 +476,7 @@ class _CategoryLimitTile extends StatelessWidget {
                 Text(
                   category.displayName,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFF1A1A1A),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -281,14 +492,14 @@ class _CategoryLimitTile extends StatelessWidget {
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Color(0xFF1A1A1A)),
                         decoration: InputDecoration(
                           hintText: '0',
-                          hintStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.3),
-                          ),
+                          hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                           suffixText: '₸',
-                          suffixStyle: const TextStyle(color: Colors.white70),
+                          suffixStyle: const TextStyle(
+                            color: Color(0xFF6B7280),
+                          ),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 8,

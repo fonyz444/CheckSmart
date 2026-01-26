@@ -165,21 +165,19 @@ class TransactionRepository {
   }
 
   /// Gets total spending for a specific category within a date range
-  double getTotalByCategory(
+  Future<double> getTotalByCategory(
     ExpenseCategory category, {
     DateTime? startDate,
     DateTime? endDate,
-  }) {
-    if (_box == null || !_box!.isOpen) {
-      return 0.0;
-    }
+  }) async {
+    final box = await _getBox();
 
     final now = DateTime.now();
     final start = startDate ?? DateTime(now.year, now.month, 1);
     final end = endDate ?? now;
 
     double total = 0.0;
-    for (final t in _box!.values) {
+    for (final t in box.values) {
       if (t.category == category) {
         final date = t.date;
         if ((date.isAfter(start) || _isSameDay(date, start)) &&

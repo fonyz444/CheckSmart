@@ -12,7 +12,7 @@
     
 
     <application
-        android:label="checksmart"
+        android:label="Aqsha AI"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

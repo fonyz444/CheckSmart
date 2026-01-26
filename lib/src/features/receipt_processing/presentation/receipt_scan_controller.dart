@@ -243,6 +243,9 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
       print('Amount: ${parsedReceipt.amount}');
       print('Merchant: ${parsedReceipt.merchant}');
       print('Date: ${parsedReceipt.date}');
+      print(
+        'Suggested Category: ${parsedReceipt.suggestedCategory?.displayName ?? 'none'}',
+      );
       print('Confidence: ${parsedReceipt.confidence}');
       print('Is Valid: ${parsedReceipt.isValid}');
       print('====================');
@@ -291,10 +294,13 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
     }
 
     try {
+      // Use parsed date/time from receipt if available, otherwise use current date/time
+      final transactionDate = result.date ?? DateTime.now();
+
       final transaction = await _transactionRepository.add(
         amount: result.amount!,
         category: category,
-        date: result.date ?? DateTime.now(),
+        date: transactionDate,
         source: result.detectedSource,
         merchant: result.merchant,
         receiptNumber: result.receiptNumber,

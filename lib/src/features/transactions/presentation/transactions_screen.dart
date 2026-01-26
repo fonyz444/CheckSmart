@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Settings screen placeholder
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+/// Transactions screen placeholder
+class TransactionsScreen extends StatelessWidget {
+  const TransactionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -11,7 +11,7 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFFF5F5F7),
         title: const Text(
-          'Настройки',
+          'Транзакции',
           style: TextStyle(
             color: Color(0xFF1A1A1A),
             fontWeight: FontWeight.bold,
@@ -20,7 +20,7 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: const Center(
         child: Text(
-          'Скоро здесь появятся настройки',
+          'Скоро здесь появятся транзакции',
           style: TextStyle(color: Color(0xFF6B7280), fontSize: 16),
         ),
       ),

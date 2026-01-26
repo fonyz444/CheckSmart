@@ -45,6 +45,9 @@ class ReceiptParser {
       receiptNumber: receiptNumber,
     );
 
+    // Suggest category based on keywords
+    final suggestedCategory = _suggestCategory(rawText);
+
     return ParsedReceipt(
       amount: amount,
       merchant: merchant,
@@ -53,6 +56,7 @@ class ReceiptParser {
       detectedSource: detectedSource,
       rawText: rawText,
       confidence: confidence,
+      suggestedCategory: suggestedCategory,
     );
   }
 
@@ -82,13 +86,103 @@ class ReceiptParser {
 
   /// Extracts the transaction amount from receipt text
   double? _extractAmount(String text) {
-    // Priority 1: Look for "265 T" or "265₸" pattern (amount with currency)
-    // Match number followed by ₸ or standalone T (not in middle of word)
-    final amountWithCurrency = RegExp(
-      r'(\d{1,3}(?:\s?\d{3})*)\s*[₸ТT](?:\s|$|[^a-zA-Zа-яА-Я])',
+    // Priority 0: Look for "ИТОГ" followed by amount (with or without =)
+    // OCR variations: ИТОГО, ИТОГ, WTO, MTOT, MTOГ, ИТО, ИТОT
+    // Handles: "ИТОГ =4200.00", "ИТОГО: 4200.00", "MTOT 4200.00"
+    final itogoPattern = RegExp(
+      r'(?:ИТОГ[ОO]?|[ИMW]TO[ГTT]?[OО]?|MTOT|MTOГ)[:\s]*[=I]?\s*(\d{1,3}(?:[\s,]?\d{3})*(?:[.,]\d{2})?)',
       caseSensitive: false,
     );
-    var match = amountWithCurrency.firstMatch(text);
+    var match = itogoPattern.firstMatch(text);
+    if (match != null) {
+      final cleaned = _cleanAmountString(match.group(1) ?? '');
+      final amount = double.tryParse(cleaned);
+      if (amount != null && amount > 0 && (amount < 2020 || amount > 2030)) {
+        print('Found amount via ИТОГО pattern: $amount');
+        return amount;
+      }
+    }
+
+    // Priority 0.1: Look for "=415.00" or "I415.00" format (OCR often reads = as I)
+    // Also look for amounts ending with .00 as they're likely totals
+    // This is common in Magnum Cash&Carry and other Kazakh retail receipts
+    final equalsAmountPattern = RegExp(
+      r'[=I]\s*(\d{1,3}(?:[\s,]?\d{3})*(?:[.,]\d{2}))',
+    );
+    final equalsMatches = equalsAmountPattern.allMatches(text).toList();
+    if (equalsMatches.isNotEmpty) {
+      // Find the largest amount among all =XXX patterns (usually the total)
+      double? maxAmount;
+      for (final m in equalsMatches) {
+        final cleaned = _cleanAmountString(m.group(1) ?? '');
+        final amount = double.tryParse(cleaned);
+        if (amount != null && amount > 0 && (amount < 2020 || amount > 2030)) {
+          if (maxAmount == null || amount > maxAmount) {
+            maxAmount = amount;
+          }
+        }
+      }
+      if (maxAmount != null && maxAmount >= 50) {
+        print('Found amount via equals/I pattern: $maxAmount');
+        return maxAmount;
+      }
+    }
+
+    // Priority 0.5: Look for "КартаменТөлендi:QR:415.00" format (Magnum payment)
+    final kartamenPattern = RegExp(
+      r'(?:Картамен|KapTaMeH|[КK]арта)[^:]*:[^:]*:\s*(\d{1,3}(?:[\s,]?\d{3})*(?:[.,]\d{2})?)',
+      caseSensitive: false,
+    );
+    match = kartamenPattern.firstMatch(text);
+    if (match != null) {
+      final cleaned = _cleanAmountString(match.group(1) ?? '');
+      final amount = double.tryParse(cleaned);
+      if (amount != null && amount > 0 && (amount < 2020 || amount > 2030)) {
+        print('Found amount via card payment pattern: $amount');
+        return amount;
+      }
+    }
+
+    // Priority 0.6: Look for standalone "1,795 THr" or "1 795 тнг" format
+    // This handles cases where OCR splits Сумма and amount on different lines
+    final standaloneAmountTNGPattern = RegExp(
+      r'(\d{1,3}(?:[,.\s]\d{3})+)\s*(?:тнг|THr|тг|ТНГ|ТГ|Thr)',
+      caseSensitive: false,
+    );
+    match = standaloneAmountTNGPattern.firstMatch(text);
+    if (match != null) {
+      final cleaned = _cleanAmountString(match.group(1) ?? '');
+      final amount = double.tryParse(cleaned);
+      if (amount != null && amount >= 100 && (amount < 2020 || amount > 2030)) {
+        print('Found amount via standalone THr pattern: $amount');
+        return amount;
+      }
+    }
+
+    // Priority 0.7: Look for "Сумма: 1,795 ТНГ" or "CyMma: 1,795 THr" format
+    // This handles Kaspi/Детский мир receipts with comma as thousand separator
+    // OCR variations: CyMma, CyMNa, CyMMa, CYMMA, Сумиа, Сумa
+    final summaWithTNGPattern = RegExp(
+      r'(?:Сумма|Сумa|Сумиa|CyM[MNmn]a|CYMMA)[:\s]+(\d{1,3}(?:[,.]\d{3})*(?:[.,]\d{2})?)\s*(?:тнг|THr|тг|ТНГ|ТГ|Thr)',
+      caseSensitive: false,
+    );
+    match = summaWithTNGPattern.firstMatch(text);
+    if (match != null) {
+      final cleaned = _cleanAmountString(match.group(1) ?? '');
+      final amount = double.tryParse(cleaned);
+      if (amount != null && amount > 0 && (amount < 2020 || amount > 2030)) {
+        print('Found amount via Сумма+ТНГ pattern: $amount');
+        return amount;
+      }
+    }
+
+    // Priority 1: Look for "265 ₸" or "265₸" pattern (amount with currency)
+    // Match number followed by ₸ - must be at least 2 digits to avoid false positives
+    final amountWithCurrency = RegExp(
+      r'(\d{2,3}(?:\s?\d{3})*)\s*[₸Т](?:\s|$|[^a-zA-Zа-яА-Я])',
+      caseSensitive: false,
+    );
+    match = amountWithCurrency.firstMatch(text);
     if (match != null) {
       final cleaned = _cleanAmountString(match.group(1) ?? '');
       final amount = double.tryParse(cleaned);
@@ -148,6 +242,27 @@ class ReceiptParser {
       }
     }
 
+    // Smart fallback: Find amounts ending with .00 (likely prices/totals)
+    // Pick the largest one as it's usually the total
+    final decimalAmounts = RegExp(r'(\d{3,})[.,][0O]{2}').allMatches(text);
+    double? maxDecimalAmount;
+    for (final m in decimalAmounts) {
+      final cleaned = _cleanAmountString(m.group(1) ?? '');
+      final amount = double.tryParse(cleaned);
+      if (amount != null &&
+          amount >= 100 &&
+          amount <= 10000000 &&
+          (amount < 2020 || amount > 2030)) {
+        if (maxDecimalAmount == null || amount > maxDecimalAmount) {
+          maxDecimalAmount = amount;
+        }
+      }
+    }
+    if (maxDecimalAmount != null) {
+      print('Found amount via decimal pattern (max): $maxDecimalAmount');
+      return maxDecimalAmount;
+    }
+
     // Last resort: Find standalone numbers (not years, not too small)
     final allNumbers = RegExp(r'\b(\d{2,}(?:\s\d{3})*)\b').allMatches(text);
     for (final numMatch in allNumbers) {
@@ -167,10 +282,29 @@ class ReceiptParser {
   }
 
   /// Cleans an amount string by removing spaces and normalizing separators
+  /// Handles both European (1.234,56) and Kazakh (1,234 or 1 234) formats
   String _cleanAmountString(String amount) {
-    return amount
-        .replaceAll(RegExp(r'\s+'), '') // Remove spaces: "1 500" -> "1500"
-        .replaceAll(',', '.'); // Normalize decimal: "1500,00" -> "1500.00"
+    // First remove all spaces
+    String cleaned = amount.replaceAll(RegExp(r'\s+'), '');
+
+    // Check if comma is a thousand separator or decimal separator
+    // Pattern: if we have X,XXX (comma followed by exactly 3 digits at end or before dot)
+    // then comma is thousand separator
+    if (RegExp(r'^\d{1,3}(,\d{3})+$').hasMatch(cleaned)) {
+      // "1,795" or "12,345,678" - comma is thousand separator, no decimals
+      cleaned = cleaned.replaceAll(',', '');
+    } else if (RegExp(r'^\d{1,3}(,\d{3})+\.\d{2}$').hasMatch(cleaned)) {
+      // "1,795.00" - comma is thousand separator, dot is decimal
+      cleaned = cleaned.replaceAll(',', '');
+    } else if (RegExp(r'^\d{1,3}(\.\d{3})+,\d{2}$').hasMatch(cleaned)) {
+      // "1.795,00" - European format: dot is thousand, comma is decimal
+      cleaned = cleaned.replaceAll('.', '').replaceAll(',', '.');
+    } else {
+      // Default: treat comma as decimal separator "1500,00" -> "1500.00"
+      cleaned = cleaned.replaceAll(',', '.');
+    }
+
+    return cleaned;
   }
 
   /// Extracts the merchant name from receipt text
@@ -219,10 +353,35 @@ class ReceiptParser {
     return null;
   }
 
-  /// Extracts the transaction date from receipt text
+  /// Extracts the transaction date and time from receipt text
   DateTime? _extractDate(String text) {
-    // Try DD.MM.YYYY format first (most common in KZ)
-    var match = DatePatterns.dotFormat.firstMatch(text);
+    // Try DD.MM.YYYY HH:MM format first (Kaspi format with time)
+    final dateTimePattern = RegExp(
+      r'(\d{2})\.(\d{2})\.(\d{4})\s+(\d{1,2}):(\d{2})',
+    );
+    var match = dateTimePattern.firstMatch(text);
+    if (match != null) {
+      final day = int.tryParse(match.group(1) ?? '');
+      final month = int.tryParse(match.group(2) ?? '');
+      final year = int.tryParse(match.group(3) ?? '');
+      final hour = int.tryParse(match.group(4) ?? '');
+      final minute = int.tryParse(match.group(5) ?? '');
+
+      if (day != null &&
+          month != null &&
+          year != null &&
+          hour != null &&
+          minute != null) {
+        try {
+          return DateTime(year, month, day, hour, minute);
+        } catch (_) {
+          // Invalid date components
+        }
+      }
+    }
+
+    // Try DD.MM.YYYY format (without time)
+    match = DatePatterns.dotFormat.firstMatch(text);
     if (match != null) {
       final day = int.tryParse(match.group(1) ?? '');
       final month = int.tryParse(match.group(2) ?? '');
@@ -295,5 +454,252 @@ class ReceiptParser {
     if (receiptNumber != null && receiptNumber.isNotEmpty) score += 0.1;
 
     return score;
+  }
+
+  /// Suggests a category based on keywords in receipt text
+  /// Returns null if no category could be determined
+  ExpenseCategory _suggestCategory(String text) {
+    final lowerText = text.toLowerCase();
+
+    // Food/Grocery keywords (highest priority for supermarkets)
+    // Include OCR variations: magnun, magпum, etc.
+    final foodKeywords = [
+      'magnum',
+      'magnun',
+      'magпum',
+      'магнум',
+      'cash&carry',
+      'cashcarry',
+      'small',
+      'арзан',
+      'metro',
+      'метро',
+      'продукты',
+      'супермаркет',
+      'supermarket',
+      'grocery',
+      'хлеб',
+      'молоко',
+      'мясо',
+      'рыба',
+      'овощи',
+      'фрукты',
+      'бакалея',
+      'гастроном',
+      'базар',
+      'рынок',
+      'green',
+      'anvar',
+      'ramstore',
+      'рамстор',
+      'interfood',
+    ];
+    for (final keyword in foodKeywords) {
+      if (lowerText.contains(keyword)) {
+        print('Suggested category: food (keyword: $keyword)');
+        return ExpenseCategory.food;
+      }
+    }
+
+    // Transport keywords
+    final transportKeywords = [
+      'бензин',
+      'азс',
+      'azs',
+      'газпром',
+      'petrol',
+      'gasoline',
+      'такси',
+      'taxi',
+      'яндекс',
+      'yandex',
+      'uber',
+      'indriver',
+      'bolt',
+      'автобус',
+      'bus',
+      'метро',
+      'subway',
+      'sinooil',
+      'qazaqoil',
+      'helios',
+      'гелиос',
+      'km/l',
+      'литр',
+    ];
+    for (final keyword in transportKeywords) {
+      if (lowerText.contains(keyword)) {
+        print('Suggested category: transport (keyword: $keyword)');
+        return ExpenseCategory.transport;
+      }
+    }
+
+    // Health/Pharmacy keywords
+    final healthKeywords = [
+      'аптека',
+      'pharmacy',
+      'pharma',
+      'лекарств',
+      'medicine',
+      'doctor',
+      'clinic',
+      'клиника',
+      'больница',
+      'hospital',
+      'стоматолог',
+      'dentist',
+      'dental',
+      'медицин',
+      'medical',
+      'euroapteka',
+      'sadyhan',
+      'биосфера',
+      'europharma',
+    ];
+    for (final keyword in healthKeywords) {
+      if (lowerText.contains(keyword)) {
+        print('Suggested category: health (keyword: $keyword)');
+        return ExpenseCategory.health;
+      }
+    }
+
+    // Entertainment keywords
+    final entertainmentKeywords = [
+      'кино',
+      'cinema',
+      'chaplin',
+      'kinopark',
+      'театр',
+      'theater',
+      'парк',
+      'park',
+      'аттракцион',
+      'боулинг',
+      'bowling',
+      'бильярд',
+      'караоке',
+      'karaoke',
+      'клуб',
+      'club',
+      'концерт',
+      'concert',
+      'игр',
+      'game',
+      'развлеч',
+      'водный мир',
+      'аквапарк',
+    ];
+    for (final keyword in entertainmentKeywords) {
+      if (lowerText.contains(keyword)) {
+        print('Suggested category: entertainment (keyword: $keyword)');
+        return ExpenseCategory.entertainment;
+      }
+    }
+
+    // Shopping keywords
+    final shoppingKeywords = [
+      'детский мир',
+      'detskiy',
+      'marwin',
+      'zara',
+      'hm',
+      'h&m',
+      'магазин',
+      'shop',
+      'store',
+      'одежда',
+      'clothes',
+      'обувь',
+      'shoes',
+      'техника',
+      'electronics',
+      'sulpak',
+      'сулпак',
+      'mechta',
+      'мечта',
+      'technology',
+      'алма',
+      'cosmo',
+    ];
+    for (final keyword in shoppingKeywords) {
+      if (lowerText.contains(keyword)) {
+        print('Suggested category: shopping (keyword: $keyword)');
+        return ExpenseCategory.shopping;
+      }
+    }
+
+    // Utilities keywords
+    final utilitiesKeywords = [
+      'коммунал',
+      'utility',
+      'электр',
+      'electric',
+      'вода',
+      'water',
+      'газ',
+      'gas',
+      'отоплен',
+      'heating',
+      'qazaqgaz',
+      'samruk',
+      'казахтелеком',
+      'kazakhtelecom',
+      'billpay',
+      'услуг',
+    ];
+    for (final keyword in utilitiesKeywords) {
+      if (lowerText.contains(keyword)) {
+        print('Suggested category: utilities (keyword: $keyword)');
+        return ExpenseCategory.utilities;
+      }
+    }
+
+    // Education keywords
+    final educationKeywords = [
+      'книга',
+      'book',
+      'учебник',
+      'textbook',
+      'курс',
+      'course',
+      'школа',
+      'school',
+      'университет',
+      'university',
+      'обучен',
+      'training',
+      'meloman',
+      'меломан',
+      'канцеляр',
+      'stationery',
+    ];
+    for (final keyword in educationKeywords) {
+      if (lowerText.contains(keyword)) {
+        print('Suggested category: education (keyword: $keyword)');
+        return ExpenseCategory.education;
+      }
+    }
+
+    // Transfer keywords (NOTE: don't include kaspi/halyk - they appear on all receipts as payment method)
+    final transferKeywords = [
+      'перевод',
+      'transfer',
+      'пополнен',
+      'deposit',
+      'withdraw',
+      'снятие',
+      'зачисление',
+      'получен перевод',
+    ];
+    for (final keyword in transferKeywords) {
+      if (lowerText.contains(keyword)) {
+        print('Suggested category: transfer (keyword: $keyword)');
+        return ExpenseCategory.transfer;
+      }
+    }
+
+    // Default to 'other' if no keywords matched
+    print('Suggested category: other (no keywords matched)');
+    return ExpenseCategory.other;
   }
 }

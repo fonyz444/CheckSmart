@@ -6,6 +6,7 @@ import 'src/app.dart';
 import 'src/core/constants.dart';
 import 'src/features/transactions/domain/transaction_entity.dart';
 import 'src/features/budget/domain/budget_limit.dart';
+import 'src/features/categories/domain/custom_category.dart';
 
 /// Application entry point
 ///
@@ -54,14 +55,19 @@ void _registerHiveAdapters() {
     Hive.registerAdapter(ReceiptSourceAdapter());
   }
 
-  // BudgetPeriod adapter (typeId = 2)
-  if (!Hive.isAdapterRegistered(2)) {
+  // BudgetPeriod adapter (typeId = 4)
+  if (!Hive.isAdapterRegistered(4)) {
     Hive.registerAdapter(BudgetPeriodAdapter());
   }
 
-  // BudgetLimit adapter (typeId = 3)
-  if (!Hive.isAdapterRegistered(3)) {
+  // BudgetLimit adapter (typeId = 5)
+  if (!Hive.isAdapterRegistered(5)) {
     Hive.registerAdapter(BudgetLimitAdapter());
+  }
+
+  // CustomCategory adapter
+  if (!Hive.isAdapterRegistered(HiveTypeIds.customCategory)) {
+    Hive.registerAdapter(CustomCategoryAdapter());
   }
 }
 

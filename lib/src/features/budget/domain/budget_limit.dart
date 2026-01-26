@@ -6,7 +6,7 @@ import '../../../core/constants.dart';
 part 'budget_limit.g.dart';
 
 /// Period for budget limits
-@HiveType(typeId: 2)
+@HiveType(typeId: 4)
 enum BudgetPeriod {
   @HiveField(0)
   week,
@@ -39,7 +39,7 @@ enum BudgetPeriod {
 }
 
 /// Budget limit for a specific category
-@HiveType(typeId: 3)
+@HiveType(typeId: 5)
 class BudgetLimit extends Equatable {
   @HiveField(0)
   final String id;

@@ -22,7 +22,18 @@ final categorySpentProvider = FutureProvider.family<double, ExpenseCategory>((
   category,
 ) async {
   final transactionRepo = ref.watch(transactionRepositoryProvider);
-  return transactionRepo.getTotalByCategory(category);
+  return await transactionRepo.getTotalByCategory(category);
+});
+
+/// Reactive provider for all budget progress - updates when transactions change
+final budgetProgressProvider = FutureProvider<List<BudgetProgress>>((
+  ref,
+) async {
+  // Watch transactions to trigger rebuild when they change
+  ref.watch(transactionsProvider);
+
+  final repository = ref.watch(budgetLimitRepositoryProvider);
+  return repository.getAllProgress();
 });
 
 /// Repository for managing budget limits with Hive storage
@@ -38,10 +49,10 @@ class BudgetLimitRepository {
 
   /// Initialize Hive box (call during app startup)
   static Future<void> initialize() async {
-    if (!Hive.isAdapterRegistered(2)) {
+    if (!Hive.isAdapterRegistered(4)) {
       Hive.registerAdapter(BudgetPeriodAdapter());
     }
-    if (!Hive.isAdapterRegistered(3)) {
+    if (!Hive.isAdapterRegistered(5)) {
       Hive.registerAdapter(BudgetLimitAdapter());
     }
     await Hive.openBox<BudgetLimit>(_boxName);
@@ -136,7 +147,7 @@ class BudgetLimitRepository {
         break;
     }
 
-    return transactionRepo.getTotalByCategory(
+    return await transactionRepo.getTotalByCategory(
       category,
       startDate: startDate,
       endDate: now,

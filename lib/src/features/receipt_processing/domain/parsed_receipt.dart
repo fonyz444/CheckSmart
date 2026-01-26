@@ -25,6 +25,9 @@ class ParsedReceipt extends Equatable {
   /// Confidence score (0.0 - 1.0) based on how many fields were extracted
   final double confidence;
 
+  /// Auto-detected category based on receipt keywords
+  final ExpenseCategory? suggestedCategory;
+
   const ParsedReceipt({
     this.amount,
     this.merchant,
@@ -33,6 +36,7 @@ class ParsedReceipt extends Equatable {
     required this.detectedSource,
     required this.rawText,
     required this.confidence,
+    this.suggestedCategory,
   });
 
   /// Returns true if enough data was extracted to create a transaction
@@ -57,6 +61,7 @@ class ParsedReceipt extends Equatable {
     detectedSource,
     rawText,
     confidence,
+    suggestedCategory,
   ];
 
   @override

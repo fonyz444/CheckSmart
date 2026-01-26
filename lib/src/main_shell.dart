@@ -5,6 +5,8 @@ import 'core/constants.dart';
 import 'features/dashboard/presentation/home_screen.dart';
 import 'features/analytics/presentation/analytics_screen.dart';
 import 'features/budget/presentation/budget_screen.dart';
+import 'features/transactions/presentation/transactions_screen.dart';
+import 'features/settings/presentation/settings_screen.dart';
 import 'features/receipt_processing/presentation/receipt_scan_controller.dart';
 
 /// Main app shell with bottom navigation
@@ -16,38 +18,27 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
-  int _currentIndex = 1; // Start on Home (center)
+  int _currentIndex = 0; // Start on Home
 
   final List<Widget> _screens = const [
-    AnalyticsScreen(),
     HomeScreen(),
-    BudgetScreen(),
+    AnalyticsScreen(),
+    TransactionsScreen(),
+    SettingsScreen(),
   ];
-
-  void _showScanOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1E1E1E),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => const _ScanOptionsSheet(),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: const Color(0xFFF5F5F7),
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
+          color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 10,
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
               offset: const Offset(0, -2),
             ),
           ],
@@ -58,56 +49,40 @@ class _MainShellState extends ConsumerState<MainShell> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                // Analytics button
-                _NavButton(
-                  icon: Icons.pie_chart_outline,
-                  activeIcon: Icons.pie_chart,
-                  label: 'Аналитика',
-                  isActive: _currentIndex == 0,
-                  onTap: () => setState(() => _currentIndex = 0),
-                ),
-
                 // Home button
                 _NavButton(
                   icon: Icons.home_outlined,
                   activeIcon: Icons.home,
                   label: 'Главная',
+                  isActive: _currentIndex == 0,
+                  onTap: () => setState(() => _currentIndex = 0),
+                ),
+
+                // Analytics button
+                _NavButton(
+                  icon: Icons.pie_chart_outline,
+                  activeIcon: Icons.pie_chart,
+                  label: 'Аналитика',
                   isActive: _currentIndex == 1,
                   onTap: () => setState(() => _currentIndex = 1),
                 ),
 
-                // Center Add button (prominent)
-                GestureDetector(
-                  onTap: _showScanOptions,
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6C5CE7), Color(0xFF00D09C)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF6C5CE7).withValues(alpha: 0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.add, color: Colors.white, size: 26),
-                  ),
-                ),
-
-                // Budget button
+                // Transactions button
                 _NavButton(
-                  icon: Icons.account_balance_wallet_outlined,
-                  activeIcon: Icons.account_balance_wallet,
-                  label: 'Бюджет',
+                  icon: Icons.receipt_long_outlined,
+                  activeIcon: Icons.receipt_long,
+                  label: 'Транзакции',
                   isActive: _currentIndex == 2,
                   onTap: () => setState(() => _currentIndex = 2),
+                ),
+
+                // Settings button
+                _NavButton(
+                  icon: Icons.settings_outlined,
+                  activeIcon: Icons.settings,
+                  label: 'Настройки',
+                  isActive: _currentIndex == 3,
+                  onTap: () => setState(() => _currentIndex = 3),
                 ),
               ],
             ),
@@ -143,14 +118,15 @@ class _NavButton extends StatelessWidget {
         children: [
           Icon(
             isActive ? activeIcon : icon,
-            color: isActive ? const Color(0xFF00D09C) : Colors.white54,
+            color: isActive ? const Color(0xFF6C5CE7) : const Color(0xFF6B7280),
             size: 24,
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              color: isActive ? const Color(0xFF00D09C) : Colors.white54,
+              color:
+                  isActive ? const Color(0xFF6C5CE7) : const Color(0xFF6B7280),
               fontSize: 12,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
             ),
@@ -184,18 +160,18 @@ class _ScanOptionsSheet extends ConsumerWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white24,
+                color: const Color(0xFFE5E7EB),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 24),
 
             if (scanState.isProcessing) ...[
-              const CircularProgressIndicator(color: Color(0xFF00D09C)),
+              const CircularProgressIndicator(color: Color(0xFF6C5CE7)),
               const SizedBox(height: 16),
               Text(
                 scanState.statusMessage ?? 'Обработка...',
-                style: const TextStyle(color: Colors.white70),
+                style: const TextStyle(color: Color(0xFF6B7280)),
               ),
             ] else if (scanState.result != null) ...[
               // SUCCESS! Show parsed result
@@ -238,7 +214,7 @@ class _ScanOptionsSheet extends ConsumerWidget {
               const Text(
                 'Добавить чек',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFF1A1A1A),
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -281,7 +257,7 @@ class _ScanOptionsSheet extends ConsumerWidget {
 }
 
 /// Shows parsed receipt result and category selection
-class _ResultView extends StatelessWidget {
+class _ResultView extends StatefulWidget {
   final dynamic result;
   final Function(ExpenseCategory) onCategorySelected;
   final VoidCallback onCancel;
@@ -293,10 +269,20 @@ class _ResultView extends StatelessWidget {
   });
 
   @override
+  State<_ResultView> createState() => _ResultViewState();
+}
+
+class _ResultViewState extends State<_ResultView> {
+  bool _showAllCategories = false;
+
+  @override
   Widget build(BuildContext context) {
-    final amount = result.amount as double?;
-    final date = result.date as DateTime?;
-    final merchant = result.merchant as String?;
+    final amount = widget.result.amount as double?;
+    final date = widget.result.date as DateTime?;
+    final merchant = widget.result.merchant as String?;
+    final suggestedCategory =
+        widget.result.suggestedCategory as ExpenseCategory?;
+    final category = suggestedCategory ?? ExpenseCategory.other;
 
     return Column(
       children: [
@@ -305,7 +291,7 @@ class _ResultView extends StatelessWidget {
           width: 64,
           height: 64,
           decoration: BoxDecoration(
-            color: const Color(0xFF00D09C).withValues(alpha: 0.2),
+            color: const Color(0xFF00D09C).withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.check, color: Color(0xFF00D09C), size: 32),
@@ -316,7 +302,7 @@ class _ResultView extends StatelessWidget {
         Text(
           '${amount?.toStringAsFixed(0) ?? '?'} ₸',
           style: const TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1A1A1A),
             fontSize: 36,
             fontWeight: FontWeight.bold,
           ),
@@ -327,55 +313,129 @@ class _ResultView extends StatelessWidget {
         if (merchant != null)
           Text(
             merchant,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 16,
-            ),
+            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 16),
           ),
         if (date != null)
           Text(
             '${date.day}.${date.month}.${date.year}',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
-              fontSize: 14,
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
+
+        const SizedBox(height: 24),
+
+        // Suggested category card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF6C5CE7).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF6C5CE7).withValues(alpha: 0.3),
             ),
           ),
-
-        const SizedBox(height: 24),
-
-        // Category selection header
-        const Text(
-          'Выберите категорию',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
+          child: Column(
+            children: [
+              const Text(
+                'Предложенная категория',
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(category.emoji, style: const TextStyle(fontSize: 28)),
+                  const SizedBox(width: 12),
+                  Text(
+                    category.displayName,
+                    style: const TextStyle(
+                      color: Color(0xFF1A1A1A),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
+
         const SizedBox(height: 16),
 
-        // Category grid
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          alignment: WrapAlignment.center,
-          children:
-              ExpenseCategory.values.map((category) {
-                return _CategoryChip(
-                  category: category,
-                  onTap: () => onCategorySelected(category),
-                );
-              }).toList(),
+        // Confirm button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => widget.onCategorySelected(category),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6C5CE7),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Подтвердить',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 12),
+
+        // Change category toggle
+        TextButton(
+          onPressed: () {
+            setState(() {
+              _showAllCategories = !_showAllCategories;
+            });
+          },
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _showAllCategories
+                    ? 'Скрыть категории'
+                    : 'Выбрать другую категорию',
+                style: const TextStyle(color: Color(0xFF6B7280)),
+              ),
+              Icon(
+                _showAllCategories ? Icons.expand_less : Icons.expand_more,
+                color: const Color(0xFF6B7280),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+
+        // Category grid (collapsible)
+        if (_showAllCategories) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children:
+                ExpenseCategory.values.map((cat) {
+                  final isSelected = cat == category;
+                  return _CategoryChip(
+                    category: cat,
+                    isSelected: isSelected,
+                    onTap: () => widget.onCategorySelected(cat),
+                  );
+                }).toList(),
+          ),
+        ],
+
+        const SizedBox(height: 16),
 
         // Cancel button
         TextButton(
-          onPressed: onCancel,
-          child: Text(
+          onPressed: widget.onCancel,
+          child: const Text(
             'Отмена',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+            style: TextStyle(color: Color(0xFF6B7280)),
           ),
         ),
       ],
@@ -386,18 +446,36 @@ class _ResultView extends StatelessWidget {
 class _CategoryChip extends StatelessWidget {
   final ExpenseCategory category;
   final VoidCallback onTap;
+  final bool isSelected;
 
-  const _CategoryChip({required this.category, required this.onTap});
+  const _CategoryChip({
+    required this.category,
+    required this.onTap,
+    this.isSelected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF2A2A2A),
+      color:
+          isSelected
+              ? const Color(0xFF6C5CE7).withValues(alpha: 0.15)
+              : const Color(0xFFF3F4F6),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
+        child: Container(
+          decoration:
+              isSelected
+                  ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF6C5CE7),
+                      width: 2,
+                    ),
+                  )
+                  : null,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -406,7 +484,14 @@ class _CategoryChip extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 category.displayName,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: TextStyle(
+                  color:
+                      isSelected
+                          ? const Color(0xFF6C5CE7)
+                          : const Color(0xFF1A1A1A),
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
               ),
             ],
           ),
@@ -432,8 +517,10 @@ class _ScanOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF2A2A2A),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(16),
+      elevation: 0,
+      shadowColor: Colors.black.withOpacity(0.05),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -445,15 +532,10 @@ class _ScanOption extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF6C5CE7).withValues(alpha: 0.3),
-                      const Color(0xFF00D09C).withValues(alpha: 0.3),
-                    ],
-                  ),
+                  color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: const Color(0xFF00D09C)),
+                child: Icon(icon, color: const Color(0xFF6C5CE7)),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -463,25 +545,22 @@ class _ScanOption extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF1A1A1A),
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                color: Colors.white.withValues(alpha: 0.3),
-              ),
+              const Icon(Icons.chevron_right, color: Color(0xFFE5E7EB)),
             ],
           ),
         ),

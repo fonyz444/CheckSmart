@@ -9,6 +9,7 @@ const String kCurrencySymbol = '₸';
 abstract class HiveBoxes {
   static const String transactions = 'transactions_box';
   static const String settings = 'settings_box';
+  static const String customCategories = 'custom_categories_box';
 }
 
 /// Hive type IDs for type adapters
@@ -16,6 +17,7 @@ abstract class HiveTypeIds {
   static const int transaction = 0;
   static const int receiptSource = 1;
   static const int category = 2;
+  static const int customCategory = 3;
 }
 
 /// Default expense categories for Kazakhstan market

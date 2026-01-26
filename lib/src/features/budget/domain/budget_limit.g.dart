@@ -8,7 +8,7 @@ part of 'budget_limit.dart';
 
 class BudgetPeriodAdapter extends TypeAdapter<BudgetPeriod> {
   @override
-  final int typeId = 2;
+  final int typeId = 4;
 
   @override
   BudgetPeriod read(BinaryReader reader) {
@@ -52,7 +52,7 @@ class BudgetPeriodAdapter extends TypeAdapter<BudgetPeriod> {
 
 class BudgetLimitAdapter extends TypeAdapter<BudgetLimit> {
   @override
-  final int typeId = 3;
+  final int typeId = 5;
 
   @override
   BudgetLimit read(BinaryReader reader) {
