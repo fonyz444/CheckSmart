@@ -44,9 +44,10 @@ class TransactionListItem extends StatelessWidget {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    transaction.merchant ?? transaction.category.displayName,
+                    transaction.category.displayName,
                     style: const TextStyle(
                       color: Color(0xFF1A1A1A),
                       fontSize: 16,
@@ -54,14 +55,6 @@ class TransactionListItem extends StatelessWidget {
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    transaction.category.displayName,
-                    style: const TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 14,
-                    ),
                   ),
                 ],
               ),

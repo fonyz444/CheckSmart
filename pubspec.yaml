@@ -40,6 +40,7 @@ dependencies:
   equatable: ^2.0.7
   fl_chart: ^1.1.1
   http: ^1.6.0
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -55,4 +56,5 @@ flutter:
     # Tesseract OCR trained data files
     # Download from: https://github.com/tesseract-ocr/tessdata
     - assets/tessdata/
+    - .env
 

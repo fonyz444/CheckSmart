@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -14,9 +15,13 @@ import 'src/features/categories/domain/custom_category.dart';
 /// - Hive local database with type adapters
 /// - Flutter widgets binding
 /// - Intl date formatting for Russian locale
+/// - Environment variables
 void main() async {
   // Ensure Flutter is initialized before Hive
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
 
   // Initialize date formatting for Russian locale
   await initializeDateFormatting('ru_RU', null);

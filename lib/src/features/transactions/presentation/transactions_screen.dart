@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/constants.dart';
+import '../../../core/app_theme.dart';
 import '../../receipt_processing/presentation/receipt_scan_controller.dart';
 import '../data/transaction_repository.dart';
 import '../domain/transaction_entity.dart';
@@ -167,7 +169,6 @@ class _DateGroup {
   _DateGroup(this.header, this.transactions);
 }
 
-// TODO: Refactor this to be shared with HomeScreen to avoid duplication
 class _ScanOptionsSheet extends ConsumerWidget {
   const _ScanOptionsSheet();
 
@@ -201,6 +202,27 @@ class _ScanOptionsSheet extends ConsumerWidget {
                 scanState.statusMessage ?? 'Processing...',
                 style: const TextStyle(color: Color(0xFF6B7280)),
               ),
+            ] else if (scanState.result != null) ...[
+              _ResultView(
+                result: scanState.result!,
+                onCategorySelected: (category) async {
+                  final transaction = await controller.saveTransaction(
+                    category: category,
+                  );
+                  if (context.mounted && transaction != null) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Saved: ${transaction.amount.toStringAsFixed(0)} ₸',
+                        ),
+                        backgroundColor: const Color(0xFF6C5CE7),
+                      ),
+                    );
+                  }
+                },
+                onCancel: () => controller.clear(),
+              ),
             ] else if (scanState.error != null) ...[
               Icon(Icons.error_outline, color: Colors.red[400], size: 48),
               const SizedBox(height: 16),
@@ -230,7 +252,6 @@ class _ScanOptionsSheet extends ConsumerWidget {
                 subtitle: 'Take a photo of receipt',
                 onTap: () async {
                   await controller.scanFromCamera();
-                  if (context.mounted) Navigator.pop(context);
                 },
               ),
               const SizedBox(height: 12),
@@ -240,12 +261,240 @@ class _ScanOptionsSheet extends ConsumerWidget {
                 subtitle: 'Select from gallery',
                 onTap: () async {
                   await controller.scanFromGallery();
-                  if (context.mounted) Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 12),
+              _ScanOption(
+                icon: Icons.picture_as_pdf,
+                title: 'PDF File',
+                subtitle: 'Kaspi / Halyk statement',
+                onTap: () async {
+                  await controller.scanFromPdf();
                 },
               ),
             ],
             const SizedBox(height: 16),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultView extends StatefulWidget {
+  final dynamic result;
+  final Function(ExpenseCategory) onCategorySelected;
+  final VoidCallback onCancel;
+
+  const _ResultView({
+    required this.result,
+    required this.onCategorySelected,
+    required this.onCancel,
+  });
+
+  @override
+  State<_ResultView> createState() => _ResultViewState();
+}
+
+class _ResultViewState extends State<_ResultView> {
+  bool _showAllCategories = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = widget.result.amount as double?;
+    final date = widget.result.date as DateTime?;
+    final merchant = widget.result.merchant as String?;
+    final suggestedCategory =
+        widget.result.suggestedCategory as ExpenseCategory?;
+    final category = suggestedCategory ?? ExpenseCategory.other;
+
+    return Column(
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: const Color(0xFF00D09C).withOpacity(0.15),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.check, color: Color(0xFF00D09C), size: 32),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          '${amount?.toStringAsFixed(0) ?? '?'} ₸',
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (date != null)
+          Text(
+            '${date.day}.${date.month}.${date.year}',
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.getCategoryColor(category).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppTheme.getCategoryColor(category).withOpacity(0.3),
+            ),
+          ),
+          child: Column(
+            children: [
+              const Text(
+                'Suggested Category',
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(category.emoji, style: const TextStyle(fontSize: 28)),
+                  const SizedBox(width: 12),
+                  Text(
+                    category.displayName,
+                    style: const TextStyle(
+                      color: Color(0xFF1A1A1A),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => widget.onCategorySelected(category),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6C5CE7),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Confirm',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextButton(
+          onPressed: () {
+            setState(() {
+              _showAllCategories = !_showAllCategories;
+            });
+          },
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _showAllCategories
+                    ? 'Hide Categories'
+                    : 'Choose Other Category',
+                style: const TextStyle(color: Color(0xFF6B7280)),
+              ),
+              Icon(
+                _showAllCategories ? Icons.expand_less : Icons.expand_more,
+                color: const Color(0xFF6B7280),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+        if (_showAllCategories) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children:
+                ExpenseCategory.values.map((cat) {
+                  final isSelected = cat == category;
+                  return _CategoryChip(
+                    category: cat,
+                    isSelected: isSelected,
+                    onTap: () => widget.onCategorySelected(cat),
+                  );
+                }).toList(),
+          ),
+        ],
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: widget.onCancel,
+          child: const Text(
+            'Cancel',
+            style: TextStyle(color: Color(0xFF6B7280)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  final ExpenseCategory category;
+  final VoidCallback onTap;
+  final bool isSelected;
+
+  const _CategoryChip({
+    required this.category,
+    required this.onTap,
+    this.isSelected = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color:
+          isSelected
+              ? const Color(0xFF6C5CE7).withOpacity(0.15)
+              : const Color(0xFFF3F4F6),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration:
+              isSelected
+                  ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF6C5CE7),
+                      width: 2,
+                    ),
+                  )
+                  : null,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(category.emoji, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Text(
+                category.displayName,
+                style: TextStyle(
+                  color:
+                      isSelected
+                          ? const Color(0xFF6C5CE7)
+                          : const Color(0xFF1A1A1A),
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

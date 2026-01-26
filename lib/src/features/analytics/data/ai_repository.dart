@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
@@ -10,11 +11,8 @@ final aiRepositoryProvider = Provider<AiRepository>((ref) {
 });
 
 class AiRepository {
-  // TODO: Secure this key.
-  static const _apiKey = String.fromEnvironment(
-    'GROQ_API_KEY',
-    defaultValue: '',
-  );
+  // Secured API key from .env file
+  static String get _apiKey => dotenv.env['GROQ_API_KEY'] ?? '';
   static const _baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
   static const _model = 'llama-3.3-70b-versatile';
 
