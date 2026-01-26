@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../transactions/data/transaction_repository.dart';
 import '../../transactions/domain/transaction_entity.dart';
 import '../data/ai_repository.dart';
+import '../../budget/data/budget_limit_repository.dart';
+import '../../budget/domain/budget_limit.dart';
 
 /// Analytics screen matching the "Reports" design
 class AnalyticsScreen extends ConsumerWidget {
@@ -108,7 +110,23 @@ class _AqshaAIAnalyzerCardState extends ConsumerState<_AqshaAIAnalyzerCard> {
 
     try {
       final repository = ref.read(aiRepositoryProvider);
-      final result = await repository.getSpendingAnalysis(widget.transactions);
+
+      // Fetch active monthly budgets
+      final budgetRepo = ref.read(budgetLimitRepositoryProvider);
+      final budgets =
+          budgetRepo
+              .getAll()
+              .where((l) => l.period == BudgetPeriod.month)
+              .toList();
+
+      final budgetMap = {
+        for (var b in budgets) b.category.displayName: b.limitAmount,
+      };
+
+      final result = await repository.getSpendingAnalysis(
+        widget.transactions,
+        budgetLimits: budgetMap,
+      );
 
       if (mounted) {
         _showResult(result);
