@@ -20,6 +20,9 @@ final transactionsProvider = StreamProvider<List<TransactionEntity>>((ref) {
 final monthlyTotalProvider = Provider<double>((ref) {
   final transactionsAsync = ref.watch(transactionsProvider);
 
+  // Helper for safe money rounding in provider
+  double roundMoney(double value) => (value * 100).round() / 100;
+
   return transactionsAsync.when(
     data: (transactions) {
       final now = DateTime.now();
@@ -31,7 +34,7 @@ final monthlyTotalProvider = Provider<double>((ref) {
             (t.date.year == startOfMonth.year &&
                 t.date.month == startOfMonth.month &&
                 t.date.day >= startOfMonth.day)) {
-          total += t.amount;
+          total = roundMoney(total + t.amount);
         }
       }
       return total;
@@ -46,6 +49,12 @@ class TransactionRepository {
   static const _uuid = Uuid();
 
   Box<TransactionEntity>? _box;
+
+  /// Rounds monetary value to 2 decimal places to avoid floating-point errors
+  /// Example: 0.1 + 0.2 = 0.30000000000000004 → 0.30
+  double _roundMoney(double value) {
+    return (value * 100).round() / 100;
+  }
 
   /// Gets or opens the Hive box
   Future<Box<TransactionEntity>> _getBox() async {
@@ -136,7 +145,7 @@ class TransactionRepository {
 
     double total = 0.0;
     for (final t in monthlyTransactions) {
-      total += t.amount;
+      total = _roundMoney(total + t.amount);
     }
     return total;
   }
@@ -157,8 +166,9 @@ class TransactionRepository {
     }
 
     for (final transaction in monthlyTransactions) {
-      totals[transaction.category] =
-          (totals[transaction.category] ?? 0) + transaction.amount;
+      totals[transaction.category] = _roundMoney(
+        (totals[transaction.category] ?? 0) + transaction.amount,
+      );
     }
 
     return totals;
@@ -182,7 +192,7 @@ class TransactionRepository {
         final date = t.date;
         if ((date.isAfter(start) || _isSameDay(date, start)) &&
             (date.isBefore(end) || _isSameDay(date, end))) {
-          total += t.amount;
+          total = _roundMoney(total + t.amount);
         }
       }
     }

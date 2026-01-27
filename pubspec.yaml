@@ -41,6 +41,7 @@ dependencies:
   fl_chart: ^1.1.1
   http: ^1.6.0
   flutter_dotenv: ^5.2.1
+  connectivity_plus: ^6.1.2
 
 dev_dependencies:
   flutter_test:

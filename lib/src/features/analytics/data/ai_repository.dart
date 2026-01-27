@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../../transactions/domain/transaction_entity.dart';
 
@@ -60,6 +61,12 @@ class AiRepository {
       return 'Нет данных о транзакциях для анализа.';
     }
 
+    // 2. Check Internet Connectivity
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.contains(ConnectivityResult.none)) {
+      return 'Нет подключения к интернету. AI анализ недоступен в офлайн-режиме.';
+    }
+
     // 2. Check Cache
     final currentHash = _generateDataHash(transactions);
     if (_cachedAnalysis != null &&
@@ -107,12 +114,17 @@ class AiRepository {
             .where((t) => t.date.year == now.year && t.date.month == now.month)
             .toList();
 
+    // Helper to avoid floating-point precision errors
+    double roundMoney(double v) => (v * 100).round() / 100;
+
     double totalSpent = 0;
     final categoryTotals = <String, double>{};
     for (var t in currentMonthData) {
-      totalSpent += t.amount;
+      totalSpent = roundMoney(totalSpent + t.amount);
       final catName = t.category.displayName;
-      categoryTotals[catName] = (categoryTotals[catName] ?? 0) + t.amount;
+      categoryTotals[catName] = roundMoney(
+        (categoryTotals[catName] ?? 0) + t.amount,
+      );
     }
 
     sb.writeln('Task: Provide 3-4 personalized financial tips in Russian.');
@@ -169,14 +181,14 @@ class AiRepository {
     if (prevMonthData.isNotEmpty) {
       final prevTotal = prevMonthData.fold<double>(
         0.0,
-        (sum, t) => sum + t.amount,
+        (sum, t) => roundMoney(sum + t.amount),
       );
       if (prevTotal > 0) {
         final change = ((totalSpent - prevTotal) / prevTotal * 100);
         final sign = change >= 0 ? '+' : '';
         sb.writeln('\n--- Historical Context ---');
         sb.writeln(
-          'Compared to last month: ${sign}${change.toStringAsFixed(1)}% (${prevTotal.toStringAsFixed(0)} ₸ -> ${totalSpent.toStringAsFixed(0)} ₸)',
+          'Compared to last month: $sign${change.toStringAsFixed(1)}% (${prevTotal.toStringAsFixed(0)} ₸ -> ${totalSpent.toStringAsFixed(0)} ₸)',
         );
       }
     }
