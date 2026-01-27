@@ -106,13 +106,14 @@ class TransactionEntityAdapter extends TypeAdapter<TransactionEntity> {
       rawOcrText: fields[8] as String?,
       note: fields[9] as String?,
       createdAt: fields[10] as DateTime,
+      customCategoryId: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, TransactionEntity obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -134,7 +135,9 @@ class TransactionEntityAdapter extends TypeAdapter<TransactionEntity> {
       ..writeByte(9)
       ..write(obj.note)
       ..writeByte(10)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(11)
+      ..write(obj.customCategoryId);
   }
 }
 

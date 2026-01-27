@@ -11,6 +11,7 @@ class TransactionEntity extends Equatable {
   final String currency;
   final String? merchant;
   final ExpenseCategory category;
+  final String? customCategoryId; // For custom user categories
   final DateTime date;
   final ReceiptSource source;
   final String? receiptNumber;
@@ -24,6 +25,7 @@ class TransactionEntity extends Equatable {
     this.currency = kDefaultCurrency,
     this.merchant,
     required this.category,
+    this.customCategoryId,
     required this.date,
     required this.source,
     this.receiptNumber,
@@ -39,6 +41,8 @@ class TransactionEntity extends Equatable {
     String? currency,
     String? merchant,
     ExpenseCategory? category,
+    String? customCategoryId,
+    bool clearCustomCategoryId = false,
     DateTime? date,
     ReceiptSource? source,
     String? receiptNumber,
@@ -52,6 +56,10 @@ class TransactionEntity extends Equatable {
       currency: currency ?? this.currency,
       merchant: merchant ?? this.merchant,
       category: category ?? this.category,
+      customCategoryId:
+          clearCustomCategoryId
+              ? null
+              : (customCategoryId ?? this.customCategoryId),
       date: date ?? this.date,
       source: source ?? this.source,
       receiptNumber: receiptNumber ?? this.receiptNumber,
@@ -68,6 +76,7 @@ class TransactionEntity extends Equatable {
     currency,
     merchant,
     category,
+    customCategoryId,
     date,
     source,
     receiptNumber,

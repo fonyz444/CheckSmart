@@ -287,6 +287,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
   Future<TransactionEntity?> saveTransaction({
     required ExpenseCategory category,
     String? note,
+    String? customCategoryId,
   }) async {
     final result = state.result;
     if (result == null || !result.isValid) {
@@ -306,6 +307,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
         receiptNumber: result.receiptNumber,
         rawOcrText: result.rawText,
         note: note,
+        customCategoryId: customCategoryId,
       );
 
       // Clear state after saving

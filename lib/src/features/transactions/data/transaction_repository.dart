@@ -74,6 +74,7 @@ class TransactionRepository {
     String? receiptNumber,
     String? rawOcrText,
     String? note,
+    String? customCategoryId,
   }) async {
     final box = await _getBox();
 
@@ -87,6 +88,7 @@ class TransactionRepository {
       receiptNumber: receiptNumber,
       rawOcrText: rawOcrText,
       note: note,
+      customCategoryId: customCategoryId,
       createdAt: DateTime.now(),
     );
 

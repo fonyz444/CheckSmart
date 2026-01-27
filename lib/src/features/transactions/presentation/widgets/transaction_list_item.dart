@@ -1,22 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/app_theme.dart';
+import '../../../categories/data/custom_category_repository.dart';
 import '../../domain/transaction_entity.dart';
 
-class TransactionListItem extends StatelessWidget {
+class TransactionListItem extends ConsumerWidget {
   final TransactionEntity transaction;
   final VoidCallback? onTap;
 
   const TransactionListItem({super.key, required this.transaction, this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currencyFormat = NumberFormat.currency(
       locale: 'ru_RU',
       symbol: '₸',
       decimalDigits: 0,
     );
+
+    // Check if this is a custom category
+    final customCategories = ref.watch(customCategoriesProvider);
+    final customCategory =
+        transaction.customCategoryId != null
+            ? customCategories
+                .where((c) => c.id == transaction.customCategoryId)
+                .firstOrNull
+            : null;
+
+    // Use custom category data if available, otherwise use standard category
+    final displayName =
+        customCategory?.name ?? transaction.category.displayName;
+    final emoji = customCategory?.emoji ?? transaction.category.emoji;
+    final color =
+        customCategory != null
+            ? const Color(0xFF6C5CE7)
+            : AppTheme.getCategoryColor(transaction.category);
 
     return InkWell(
       onTap: onTap,
@@ -28,15 +48,9 @@ class TransactionListItem extends StatelessWidget {
             Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(
-                color: AppTheme.getCategoryColor(transaction.category),
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               alignment: Alignment.center,
-              child: Text(
-                transaction.category.emoji,
-                style: const TextStyle(fontSize: 24),
-              ),
+              child: Text(emoji, style: const TextStyle(fontSize: 24)),
             ),
             const SizedBox(width: 16),
 
@@ -47,7 +61,7 @@ class TransactionListItem extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    transaction.category.displayName,
+                    displayName,
                     style: const TextStyle(
                       color: Color(0xFF1A1A1A),
                       fontSize: 16,

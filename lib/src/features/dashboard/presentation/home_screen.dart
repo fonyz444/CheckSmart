@@ -71,6 +71,67 @@ bool _isSameDay(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
+/// Provider for custom category totals (weekly)
+final weeklyCustomCategoryTotalsProvider = Provider<Map<String, double>>((ref) {
+  final transactionsAsync = ref.watch(transactionsProvider);
+
+  return transactionsAsync.when(
+    data: (transactions) {
+      final now = DateTime.now();
+      final weekDay = now.weekday;
+      final startOfWeek = now.subtract(Duration(days: weekDay - 1));
+      final startDate = DateTime(
+        startOfWeek.year,
+        startOfWeek.month,
+        startOfWeek.day,
+      );
+
+      final totals = <String, double>{};
+
+      for (final t in transactions) {
+        if (t.customCategoryId != null &&
+            (t.date.isAfter(startDate) || _isSameDay(t.date, startDate))) {
+          totals[t.customCategoryId!] =
+              (totals[t.customCategoryId!] ?? 0) + t.amount;
+        }
+      }
+
+      return totals;
+    },
+    loading: () => <String, double>{},
+    error: (_, __) => <String, double>{},
+  );
+});
+
+/// Provider for custom category totals (monthly)
+final monthlyCustomCategoryTotalsProvider = Provider<Map<String, double>>((
+  ref,
+) {
+  final transactionsAsync = ref.watch(transactionsProvider);
+
+  return transactionsAsync.when(
+    data: (transactions) {
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1);
+
+      final totals = <String, double>{};
+
+      for (final t in transactions) {
+        if (t.customCategoryId != null &&
+            (t.date.isAfter(startOfMonth) ||
+                _isSameDay(t.date, startOfMonth))) {
+          totals[t.customCategoryId!] =
+              (totals[t.customCategoryId!] ?? 0) + t.amount;
+        }
+      }
+
+      return totals;
+    },
+    loading: () => <String, double>{},
+    error: (_, __) => <String, double>{},
+  );
+});
+
 /// Home screen with budget tracking and expense categories
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -86,16 +147,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final weeklyCategoryTotals = ref.watch(weeklyCategoryTotalsProvider);
     final monthlyCategoryTotals = ref.watch(monthlyCategoryTotalsProvider);
+    final weeklyCustomTotals = ref.watch(weeklyCustomCategoryTotalsProvider);
+    final monthlyCustomTotals = ref.watch(monthlyCustomCategoryTotalsProvider);
+    final customCategories = ref.watch(customCategoriesProvider);
 
-    // Calculate totals
-    final totalMonthlySpent = monthlyCategoryTotals.values.fold<double>(
-      0,
-      (sum, amount) => sum + amount,
-    );
-    final totalWeeklySpent = weeklyCategoryTotals.values.fold<double>(
-      0,
-      (sum, amount) => sum + amount,
-    );
+    // Calculate totals (including custom categories)
+    final totalMonthlySpent =
+        monthlyCategoryTotals.values.fold<double>(
+          0,
+          (sum, amount) => sum + amount,
+        ) +
+        monthlyCustomTotals.values.fold<double>(
+          0,
+          (sum, amount) => sum + amount,
+        );
+
+    final totalWeeklySpent =
+        weeklyCategoryTotals.values.fold<double>(
+          0,
+          (sum, amount) => sum + amount,
+        ) +
+        weeklyCustomTotals.values.fold<double>(
+          0,
+          (sum, amount) => sum + amount,
+        );
 
     // Get sorted categories for display
     final monthlySorted =
@@ -186,7 +261,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
 
             // Weekly Section
-            if (weeklySorted.isNotEmpty)
+            if (weeklySorted.isNotEmpty || weeklyCustomTotals.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -256,6 +331,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
+                      // Weekly Custom Categories
+                      ...weeklyCustomTotals.entries.map((entry) {
+                        final customCat =
+                            customCategories
+                                .where((c) => c.id == entry.key)
+                                .firstOrNull;
+                        if (customCat == null) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _TransactionCategoryRow(
+                            icon: customCat.emoji,
+                            name: customCat.name,
+                            amount: entry.value,
+                            color: const Color(0xFF6C5CE7),
+                          ),
+                        );
+                      }),
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -263,7 +355,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
 
             // Monthly Section
-            if (monthlySorted.isNotEmpty)
+            if (monthlySorted.isNotEmpty || monthlyCustomTotals.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -333,6 +425,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
+                      // Monthly Custom Categories
+                      ...monthlyCustomTotals.entries.map((entry) {
+                        final customCat =
+                            customCategories
+                                .where((c) => c.id == entry.key)
+                                .firstOrNull;
+                        if (customCat == null) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _TransactionCategoryRow(
+                            icon: customCat.emoji,
+                            name: customCat.name,
+                            amount: entry.value,
+                            color: const Color(0xFF6C5CE7),
+                          ),
+                        );
+                      }),
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -664,6 +773,26 @@ class _ScanOptionsSheet extends ConsumerWidget {
                     );
                   }
                 },
+                onCustomCategorySelected: (
+                  customCategoryId,
+                  categoryName,
+                ) async {
+                  final transaction = await controller.saveTransaction(
+                    category: ExpenseCategory.other,
+                    customCategoryId: customCategoryId,
+                  );
+                  if (context.mounted && transaction != null) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Сохранено в "$categoryName": ${transaction.amount.toStringAsFixed(0)} ₸',
+                        ),
+                        backgroundColor: const Color(0xFF6C5CE7),
+                      ),
+                    );
+                  }
+                },
                 onCancel: () => controller.clear(),
               ),
             ] else if (scanState.error != null) ...[
@@ -721,11 +850,14 @@ class _ScanOptionsSheet extends ConsumerWidget {
 class _ResultView extends ConsumerStatefulWidget {
   final dynamic result;
   final Function(ExpenseCategory) onCategorySelected;
+  final Function(String customCategoryId, String categoryName)
+  onCustomCategorySelected;
   final VoidCallback onCancel;
 
   const _ResultView({
     required this.result,
     required this.onCategorySelected,
+    required this.onCustomCategorySelected,
     required this.onCancel,
   });
 
@@ -906,7 +1038,10 @@ class _ResultViewState extends ConsumerState<_ResultView> {
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
                     onTap:
-                        () => widget.onCategorySelected(ExpenseCategory.other),
+                        () => widget.onCustomCategorySelected(
+                          custom.id,
+                          custom.name,
+                        ),
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
