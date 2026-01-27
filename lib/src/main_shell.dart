@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/constants.dart';
 import 'features/dashboard/presentation/home_screen.dart';
 import 'features/analytics/presentation/analytics_screen.dart';
-import 'features/budget/presentation/budget_screen.dart';
 import 'features/transactions/presentation/transactions_screen.dart';
 import 'features/settings/presentation/settings_screen.dart';
 import 'features/receipt_processing/presentation/receipt_scan_controller.dart';

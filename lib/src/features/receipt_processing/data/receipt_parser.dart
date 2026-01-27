@@ -243,24 +243,43 @@ class ReceiptParser {
     }
 
     // Smart fallback: Find amounts ending with .00 (likely prices/totals)
-    // Pick the largest one as it's usually the total
-    final decimalAmounts = RegExp(r'(\d{3,})[.,][0O]{2}').allMatches(text);
-    double? maxDecimalAmount;
+    // EXCLUDE amounts preceded by "x " which are line item prices (e.g., "1,000 x 4900,00")
+    // Pick the LAST valid amount as totals are usually at the bottom
+    final decimalAmounts =
+        RegExp(r'(\d{3,})[.,][0O]{2}').allMatches(text).toList();
+
+    double? lastValidAmount;
+
     for (final m in decimalAmounts) {
+      // Check if this amount is preceded by "x " (line item price)
+      final precedingText =
+          m.start >= 3 ? text.substring(m.start - 3, m.start) : '';
+      final isLineItemPrice = RegExp(
+        r'[xх×]\s*$',
+        caseSensitive: false,
+      ).hasMatch(precedingText);
+
+      if (isLineItemPrice) {
+        // Skip line item prices
+        continue;
+      }
+
       final cleaned = _cleanAmountString(m.group(1) ?? '');
       final amount = double.tryParse(cleaned);
       if (amount != null &&
           amount >= 100 &&
           amount <= 10000000 &&
           (amount < 2020 || amount > 2030)) {
-        if (maxDecimalAmount == null || amount > maxDecimalAmount) {
-          maxDecimalAmount = amount;
-        }
+        // Keep updating - the last one is usually the total
+        lastValidAmount = amount;
       }
     }
-    if (maxDecimalAmount != null) {
-      print('Found amount via decimal pattern (max): $maxDecimalAmount');
-      return maxDecimalAmount;
+
+    if (lastValidAmount != null) {
+      print(
+        'Found amount via decimal pattern (last non-item): $lastValidAmount',
+      );
+      return lastValidAmount;
     }
 
     // Last resort: Find standalone numbers (not years, not too small)
@@ -305,6 +324,29 @@ class ReceiptParser {
     }
 
     return cleaned;
+  }
+
+  /// Finds the index of ИТОГО-like keywords in text
+  /// Returns -1 if not found
+  int _findItogoKeywordIndex(String text) {
+    final lowerText = text.toLowerCase();
+
+    // Order by priority - more specific first
+    final keywords = [
+      'банковская карт', 'банковская кар', // Банковская карта (payment by card)
+      'итого', 'итог', 'mtoro', 'mtor', 'wtoro', // ИТОГО variations
+      'всего к оплате', 'к оплате',
+      'всего',
+    ];
+
+    for (final keyword in keywords) {
+      final index = lowerText.indexOf(keyword);
+      if (index >= 0) {
+        return index;
+      }
+    }
+
+    return -1;
   }
 
   /// Extracts the merchant name from receipt text

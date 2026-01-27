@@ -16,6 +16,7 @@ dependencies:
 
   # OCR & PDF Processing
   google_mlkit_text_recognition: ^0.14.0
+  flutter_tesseract_ocr: ^0.4.23
   pdfx: ^2.6.0
 
   # Local Storage

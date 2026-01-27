@@ -718,7 +718,7 @@ class _ScanOptionsSheet extends ConsumerWidget {
   }
 }
 
-class _ResultView extends StatefulWidget {
+class _ResultView extends ConsumerStatefulWidget {
   final dynamic result;
   final Function(ExpenseCategory) onCategorySelected;
   final VoidCallback onCancel;
@@ -730,14 +730,15 @@ class _ResultView extends StatefulWidget {
   });
 
   @override
-  State<_ResultView> createState() => _ResultViewState();
+  ConsumerState<_ResultView> createState() => _ResultViewState();
 }
 
-class _ResultViewState extends State<_ResultView> {
+class _ResultViewState extends ConsumerState<_ResultView> {
   bool _showAllCategories = false;
 
   @override
   Widget build(BuildContext context) {
+    final customCategories = ref.watch(customCategoriesProvider);
     final amount = widget.result.amount as double?;
     final date = widget.result.date as DateTime?;
     final merchant = widget.result.merchant as String?;
@@ -888,15 +889,57 @@ class _ResultViewState extends State<_ResultView> {
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
             childAspectRatio: 2.5,
-            children:
-                ExpenseCategory.values.map((cat) {
-                  final isSelected = cat == category;
-                  return _CategoryChipSelectable(
-                    category: cat,
-                    isSelected: isSelected,
-                    onTap: () => widget.onCategorySelected(cat),
-                  );
-                }).toList(),
+            children: [
+              // Built-in categories
+              ...ExpenseCategory.values.map((cat) {
+                final isSelected = cat == category;
+                return _CategoryChipSelectable(
+                  category: cat,
+                  isSelected: isSelected,
+                  onTap: () => widget.onCategorySelected(cat),
+                );
+              }),
+              // Custom categories
+              ...customCategories.map((custom) {
+                return Material(
+                  color: const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap:
+                        () => widget.onCategorySelected(ExpenseCategory.other),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            custom.emoji,
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              custom.name,
+                              style: const TextStyle(
+                                color: Color(0xFF1A1A1A),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              // Create new category button
+              const _CreateCategoryButton(),
+            ],
           ),
         ],
 
@@ -1122,7 +1165,7 @@ class _CreateCategoryButton extends ConsumerWidget {
       builder:
           (context) => StatefulBuilder(
             builder:
-                (context, setState) => Padding(
+                (context, setState) => SingleChildScrollView(
                   padding: EdgeInsets.only(
                     left: 24,
                     right: 24,

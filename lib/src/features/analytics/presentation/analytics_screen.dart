@@ -421,8 +421,9 @@ class _MonthlySpendVsBudgetChart extends StatelessWidget {
                       reservedSize: 30,
                       interval: 7, // Show every week
                       getTitlesWidget: (value, meta) {
-                        if (value < 1 || value > 31)
+                        if (value < 1 || value > 31) {
                           return const SizedBox.shrink();
+                        }
                         return Text(
                           '${value.toInt()} авг', // TODO: Dynamic month
                           style: TextStyle(
@@ -524,8 +525,9 @@ class _MonthComparisonChart extends StatelessWidget {
     // Max Y for scale
     double maxY = 0;
     if (currentMonthSpots.isNotEmpty) maxY = currentMonthSpots.last.y;
-    if (lastMonthSpots.isNotEmpty && lastMonthSpots.last.y > maxY)
+    if (lastMonthSpots.isNotEmpty && lastMonthSpots.last.y > maxY) {
       maxY = lastMonthSpots.last.y;
+    }
     if (maxY == 0) maxY = 10000;
 
     return Container(
@@ -583,8 +585,9 @@ class _MonthComparisonChart extends StatelessWidget {
                       reservedSize: 30,
                       interval: 7,
                       getTitlesWidget: (value, meta) {
-                        if (value < 1 || value > 31)
+                        if (value < 1 || value > 31) {
                           return const SizedBox.shrink();
+                        }
                         return Text(
                           '${value.toInt()}',
                           style: TextStyle(
