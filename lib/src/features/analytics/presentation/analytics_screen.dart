@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/constants.dart';
 import '../../transactions/data/transaction_repository.dart';
 import '../../transactions/domain/transaction_entity.dart';
 import '../data/ai_repository.dart';
@@ -65,7 +66,7 @@ class AnalyticsScreen extends ConsumerWidget {
                       data: (transactions) {
                         return Column(
                           children: [
-                            _MonthlySpendVsBudgetChart(
+                            _MonthlyExpensesPieChart(
                               transactions: transactions,
                             ),
                             const SizedBox(height: 16),
@@ -320,55 +321,68 @@ class _AqshaAIAnalyzerCardState extends ConsumerState<_AqshaAIAnalyzerCard> {
   }
 }
 
-class _MonthlySpendVsBudgetChart extends StatelessWidget {
+class _MonthlyExpensesPieChart extends ConsumerStatefulWidget {
   final List<TransactionEntity> transactions;
 
-  const _MonthlySpendVsBudgetChart({required this.transactions});
+  const _MonthlyExpensesPieChart({required this.transactions});
+
+  @override
+  ConsumerState<_MonthlyExpensesPieChart> createState() =>
+      _MonthlyExpensesPieChartState();
+}
+
+class _MonthlyExpensesPieChartState
+    extends ConsumerState<_MonthlyExpensesPieChart> {
+  int _touchedIndex = -1;
 
   @override
   Widget build(BuildContext context) {
-    // Process data for the chart
-    // For demo purposes, we'll create cumulative spending points for the current month
+    final customCategories = ref.watch(customCategoriesProvider);
     final now = DateTime.now();
+
+    // 1. Filter transactions for current month
     final currentMonthTransactions =
-        transactions.where((t) {
+        widget.transactions.where((t) {
           return t.date.year == now.year && t.date.month == now.month;
         }).toList();
 
-    // Sort by date
-    currentMonthTransactions.sort((a, b) => a.date.compareTo(b.date));
+    // 2. Group by Category
+    final categoryTotals = <String, double>{};
+    final categoryInfo = <String, Map<String, dynamic>>{};
 
-    // Generate spots
-    List<FlSpot> spots = [];
-
-    // Group by day to make it smoother or just add points
-    // Map<Day, Total>
-    final dayTotals = <int, double>{};
     for (var t in currentMonthTransactions) {
-      dayTotals[t.date.day] = (dayTotals[t.date.day] ?? 0) + t.amount;
-    }
+      String key;
+      String name;
+      String emoji;
+      Color color;
 
-    // Cumulative
-    double cumulativeVal = 0;
-    // We want points from day 1 to today
-    for (int i = 1; i <= now.day; i++) {
-      if (dayTotals.containsKey(i)) {
-        cumulativeVal += dayTotals[i]!;
+      if (t.customCategoryId != null) {
+        key = t.customCategoryId!;
+        final customCat =
+            customCategories.where((c) => c.id == key).firstOrNull;
+        name = customCat?.name ?? 'Custom';
+        emoji = customCat?.emoji ?? '📁';
+        color = const Color(0xFF6C5CE7); // Custom category color
+      } else {
+        key = t.category.name;
+        name = t.category.displayName;
+        emoji = t.category.emoji;
+        color = _getCategoryColor(t.category);
       }
-      // Only add spot if we have data or it's a significant point.
-      spots.add(FlSpot(i.toDouble(), cumulativeVal));
+
+      categoryTotals[key] = (categoryTotals[key] ?? 0) + t.amount;
+      categoryInfo[key] = {'name': name, 'emoji': emoji, 'color': color};
     }
 
-    if (spots.isEmpty) {
-      spots.add(const FlSpot(0, 0));
-    }
+    final totalSpent = categoryTotals.values.fold(0.0, (sum, val) => sum + val);
 
-    // Budget line (Mock: 500,000 budget)
-    final budget = 500000.0;
+    // Prepare sections
+    final sortedKeys =
+        categoryTotals.keys.toList()
+          ..sort((a, b) => categoryTotals[b]!.compareTo(categoryTotals[a]!));
 
-    // Spots for budget line
-    // If spots is empty, budgetSpots also needs to be safe.
-    final budgetSpots = [const FlSpot(1, 0), FlSpot(30, budget)];
+    // Colors for chart (if multiple custom categories, maybe vary basic color?)
+    // For now using defined colors.
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -380,134 +394,185 @@ class _MonthlySpendVsBudgetChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Расходы vs Бюджет',
+            'Расходы за месяц',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1A1A1A),
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _LegendItem(color: const Color(0xFF00D09C), label: 'Расходы'),
-              const SizedBox(width: 16),
-              _LegendItem(
-                color: const Color(0xFF6C5CE7),
-                label: 'Бюджет (${NumberFormat.compact().format(budget)})',
-                isDashed: true,
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          AspectRatio(
-            aspectRatio: 1.5,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: budget / 4,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(color: Colors.grey[100], strokeWidth: 1);
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      interval: 7, // Show every week
-                      getTitlesWidget: (value, meta) {
-                        if (value < 1 || value > 31) {
-                          return const SizedBox.shrink();
-                        }
-                        return Text(
-                          '${value.toInt()} авг', // TODO: Dynamic month
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 12,
-                          ),
-                        );
+          const SizedBox(height: 32),
+          SizedBox(
+            height: 250,
+            child: Stack(
+              children: [
+                PieChart(
+                  PieChartData(
+                    pieTouchData: PieTouchData(
+                      touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                        setState(() {
+                          if (!event.isInterestedForInteractions ||
+                              pieTouchResponse == null ||
+                              pieTouchResponse.touchedSection == null) {
+                            _touchedIndex = -1;
+                            return;
+                          }
+                          _touchedIndex =
+                              pieTouchResponse
+                                  .touchedSection!
+                                  .touchedSectionIndex;
+                        });
                       },
                     ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          NumberFormat.compact().format(value),
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 12,
-                          ),
-                        );
-                      },
+                    borderData: FlBorderData(show: false),
+                    sectionsSpace: 2, // Gap between sections
+                    centerSpaceRadius: 80, // Donut hole size
+                    sections: _showingSections(
+                      sortedKeys,
+                      categoryTotals,
+                      categoryInfo,
+                      totalSpent,
                     ),
                   ),
                 ),
-                borderData: FlBorderData(show: false),
-                minX: 1,
-                maxX: 30, // Approx month end
-                minY: 0,
-                // Add some headroom
-                maxY:
-                    (spots.isNotEmpty ? spots.last.y : 0) > budget
-                        ? (spots.last.y * 1.2)
-                        : budget * 1.1,
-                lineBarsData: [
-                  // Budget Line (Dotted)
-                  LineChartBarData(
-                    spots: budgetSpots,
-                    isCurved: false,
-                    color: const Color(0xFF6C5CE7),
-                    barWidth: 2,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
-                    dashArray: [5, 5],
+                // Center info
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_touchedIndex != -1 &&
+                          _touchedIndex < sortedKeys.length) ...[
+                        Text(
+                          categoryInfo[sortedKeys[_touchedIndex]]!['emoji'],
+                          style: const TextStyle(fontSize: 28),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          categoryInfo[sortedKeys[_touchedIndex]]!['name'],
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6B7280),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${categoryTotals[sortedKeys[_touchedIndex]]!.toStringAsFixed(0)} ₸',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                      ] else ...[
+                        const Icon(
+                          Icons.account_balance_wallet_outlined,
+                          size: 32,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Всего',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${totalSpent.toStringAsFixed(0)} ₸',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  // Spent Line
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: true,
-                    color: const Color(0xFF00D09C),
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        // Only show dot on the last point
-                        if (index == spots.length - 1) {
-                          return FlDotCirclePainter(
-                            radius: 4,
-                            color: Colors.white,
-                            strokeWidth: 3,
-                            strokeColor: const Color(0xFF00D09C),
-                          );
-                        }
-                        return FlDotCirclePainter(
-                          radius: 0,
-                          color: Colors.transparent,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(show: false),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(height: 16),
+          // Optional: Legend or List below if needed, but per request pie chart logic is main
+        ],
+      ),
+    );
+  }
+
+  List<PieChartSectionData> _showingSections(
+    List<String> sortedKeys,
+    Map<String, double> categoryTotals,
+    Map<String, Map<String, dynamic>> categoryInfo,
+    double totalSpent,
+  ) {
+    return List.generate(sortedKeys.length, (i) {
+      final isTouched = i == _touchedIndex;
+      final key = sortedKeys[i];
+      final amount = categoryTotals[key]!;
+      final info = categoryInfo[key]!;
+
+      // Calculate percentage for sizing if needed, currently fixed radius
+      final radius = isTouched ? 30.0 : 25.0; // Slightly larger on touch
+
+      return PieChartSectionData(
+        color: info['color'],
+        value: amount,
+        title: '', // No title on chart itself (clean look)
+        radius: radius,
+        titleStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        badgeWidget: isTouched ? _Badge(info['emoji']) : null,
+        badgePositionPercentageOffset: 1.3,
+      );
+    });
+  }
+
+  Color _getCategoryColor(ExpenseCategory category) {
+    const colorMap = {
+      ExpenseCategory.food: Color(0xFF3B82F6),
+      ExpenseCategory.transport: Color(0xFF06B6D4),
+      ExpenseCategory.utilities: Color(0xFFEC4899),
+      ExpenseCategory.shopping: Color(0xFF8B5CF6),
+      ExpenseCategory.entertainment: Color(0xFF10B981),
+      ExpenseCategory.health: Color(0xFFEF4444),
+      ExpenseCategory.education: Color(0xFFF59E0B),
+      ExpenseCategory.transfer: Color(0xFFF97316),
+      ExpenseCategory.other: Color(0xFF6B7280),
+    };
+    return colorMap[category] ?? const Color(0xFF6B7280);
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final String emoji;
+  const _Badge(this.emoji);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+            spreadRadius: 1,
           ),
         ],
       ),
+      child: Center(child: Text(emoji, style: const TextStyle(fontSize: 14))),
     );
   }
 }
@@ -698,15 +763,9 @@ class _MonthComparisonChart extends StatelessWidget {
 class _LegendItem extends StatelessWidget {
   final Color color;
   final String label;
-  final bool isDashed;
   final Color? textColor;
 
-  const _LegendItem({
-    required this.color,
-    required this.label,
-    this.isDashed = false,
-    this.textColor,
-  });
+  const _LegendItem({required this.color, required this.label, this.textColor});
 
   @override
   Widget build(BuildContext context) {
@@ -714,23 +773,18 @@ class _LegendItem extends StatelessWidget {
       children: [
         Container(
           width: 12,
-          height: 2,
+          height:
+              12, // Changed to square/circle for cleaner look or keep line? Kept line logic but maybe cleaner dot?
+          // The old one was a line. Let's make it a circle for standard legend or keep line.
+          // The request was for "Pie Chart style". Usually dots.
+          // But I'll stick to minimizing changes to _LegendItem unless broken.
+          // Wait, the previous code was generating a line.
+          // Let's just remove isDashed logic.
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(1),
+            borderRadius: BorderRadius.circular(2),
           ),
         ),
-        if (isDashed) ...[
-          const SizedBox(width: 2),
-          Container(
-            width: 12,
-            height: 2,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(1),
-            ),
-          ),
-        ],
         const SizedBox(width: 8),
         Text(
           label,

@@ -494,69 +494,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
 
-            // Add new category button (only if there are transactions)
-            if (monthlySorted.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: TextButton(
-                    onPressed: () {
-                      // TODO: Implement add category
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text(
-                      'Add new category',
-                      style: TextStyle(
-                        color: Color(0xFF9CA3AF),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            // Add new category button removed
 
-            // Hidden categories link (only if there are transactions)
-            if (monthlySorted.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 8,
-                  ),
-                  child: InkWell(
-                    onTap: () {
-                      // TODO: Show hidden categories
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.visibility_off_outlined,
-                          size: 16,
-                          color: const Color(0xFF9CA3AF),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'Hidden categories',
-                          style: TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.chevron_right,
-                          size: 16,
-                          color: const Color(0xFF9CA3AF),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            // Hidden categories link removed
 
             // Bottom padding for nav bar
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
