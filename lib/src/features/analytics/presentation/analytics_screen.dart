@@ -637,23 +637,86 @@ class _MonthComparisonChart extends StatelessWidget {
                 lineTouchData: LineTouchData(
                   touchTooltipData: LineTouchTooltipData(
                     getTooltipItems: (touchedSpots) {
+                      // Sort spots so "This Month" (index 1) is usually first or consistent
+                      touchedSpots.sort(
+                        (a, b) => b.barIndex.compareTo(a.barIndex),
+                      );
+
                       return touchedSpots.map((spot) {
+                        final isThisMonth = spot.barIndex == 1;
+                        final label = isThisMonth ? 'Этот: ' : 'Прошлый: ';
+                        final value = NumberFormat.currency(
+                          symbol: '₸',
+                          decimalDigits: 0,
+                          locale: 'ru_RU',
+                        ).format(spot.y);
+
                         return LineTooltipItem(
-                          spot.y.toStringAsFixed(0),
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          // Rich text for the tooltip
+                          '',
+                          const TextStyle(),
+                          children: [
+                            TextSpan(
+                              text: '$label\n',
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 10,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+                            TextSpan(
+                              text: value,
+                              style: TextStyle(
+                                color:
+                                    isThisMonth
+                                        ? Colors.white
+                                        : Colors.grey[300],
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                          textAlign: TextAlign.left,
                         );
                       }).toList();
                     },
+                    fitInsideHorizontally: true,
+                    fitInsideVertically: true,
                   ),
+                  getTouchedSpotIndicator: (
+                    LineChartBarData barData,
+                    List<int> spotIndexes,
+                  ) {
+                    return spotIndexes.map((spotIndex) {
+                      return TouchedSpotIndicatorData(
+                        FlLine(
+                          color: const Color(0xFF6C5CE7).withOpacity(0.5),
+                          strokeWidth: 2,
+                          dashArray: [5, 5],
+                        ),
+                        FlDotData(
+                          getDotPainter: (spot, percent, barData, index) {
+                            return FlDotCirclePainter(
+                              radius: 6,
+                              color: Colors.white,
+                              strokeWidth: 3,
+                              strokeColor: const Color(0xFF6C5CE7),
+                            );
+                          },
+                        ),
+                      );
+                    }).toList();
+                  },
                 ),
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (value) {
-                    return FlLine(color: Colors.grey[100], strokeWidth: 1);
+                    return FlLine(
+                      color: Colors.grey[200],
+                      strokeWidth: 1,
+                      dashArray: [5, 5],
+                    );
                   },
                 ),
                 titlesData: FlTitlesData(
@@ -712,8 +775,9 @@ class _MonthComparisonChart extends StatelessWidget {
                             ? [const FlSpot(0, 0)]
                             : lastMonthSpots,
                     isCurved: true,
-                    color: Colors.grey[300],
-                    barWidth: 3,
+                    curveSmoothness: 0.35,
+                    color: Colors.grey[200],
+                    barWidth: 2,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
                   ),
@@ -724,10 +788,22 @@ class _MonthComparisonChart extends StatelessWidget {
                             ? [const FlSpot(0, 0)]
                             : currentMonthSpots,
                     isCurved: true,
+                    curveSmoothness: 0.35,
                     color: const Color(0xFF6C5CE7),
-                    barWidth: 3,
+                    barWidth: 4,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF6C5CE7).withOpacity(0.3),
+                          const Color(0xFF6C5CE7).withOpacity(0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
                   ),
                 ],
               ),
