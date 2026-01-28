@@ -298,21 +298,61 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
       // Use parsed date/time from receipt if available, otherwise use current date/time
       final transactionDate = result.date ?? DateTime.now();
 
-      final transaction = await _transactionRepository.add(
-        amount: result.amount!,
-        category: category,
-        date: transactionDate,
-        source: result.detectedSource,
-        merchant: result.merchant,
-        receiptNumber: result.receiptNumber,
-        rawOcrText: result.rawText,
-        note: note,
-        customCategoryId: customCategoryId,
-      );
+      // Check for tax amount to split transaction
+      final tax = result.taxAmount;
+      final totalAmount = result.amount!;
+
+      TransactionEntity? mainTransaction;
+
+      if (tax != null && tax > 0 && tax < totalAmount) {
+        // Option 1: Split into Net Amount + Tax
+        final netAmount = totalAmount - tax;
+
+        // 1. Save Main Transaction (Net Amount)
+        mainTransaction = await _transactionRepository.add(
+          amount: netAmount,
+          category: category,
+          date: transactionDate,
+          source: result.detectedSource,
+          merchant: result.merchant,
+          receiptNumber: result.receiptNumber,
+          rawOcrText: result.rawText,
+          note: note,
+          customCategoryId: customCategoryId,
+        );
+
+        // 2. Save Tax Transaction
+        await _transactionRepository.add(
+          amount: tax,
+          category: ExpenseCategory.taxes, // Automatic tax category
+          date: transactionDate,
+          source: result.detectedSource,
+          merchant: result.merchant,
+          receiptNumber: result.receiptNumber,
+          rawOcrText: result.rawText,
+          note:
+              'НДС/Налог с чека (Основная сумма: ${totalAmount.toStringAsFixed(0)})',
+        );
+
+        print('Transaction split: Net=$netAmount, Tax=$tax');
+      } else {
+        // Option 2: No tax detected or invalid tax amount - save as single transaction
+        mainTransaction = await _transactionRepository.add(
+          amount: totalAmount,
+          category: category,
+          date: transactionDate,
+          source: result.detectedSource,
+          merchant: result.merchant,
+          receiptNumber: result.receiptNumber,
+          rawOcrText: result.rawText,
+          note: note,
+          customCategoryId: customCategoryId,
+        );
+      }
 
       // Clear state after saving
       state = const ReceiptScanState();
-      return transaction;
+      return mainTransaction;
     } catch (e) {
       state = state.copyWith(
         error: StorageFailure('Ошибка сохранения: $e', originalError: e),

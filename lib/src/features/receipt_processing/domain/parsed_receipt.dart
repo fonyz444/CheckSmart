@@ -10,6 +10,9 @@ class ParsedReceipt extends Equatable {
   /// Extracted merchant name (e.g., "ИП ДАДИКБАЕВА")
   final String? merchant;
 
+  /// Extracted tax amount (e.g., VAT/НДС)
+  final double? taxAmount;
+
   /// Extracted transaction date
   final DateTime? date;
 
@@ -30,6 +33,7 @@ class ParsedReceipt extends Equatable {
 
   const ParsedReceipt({
     this.amount,
+    this.taxAmount,
     this.merchant,
     this.date,
     this.receiptNumber,
@@ -55,6 +59,7 @@ class ParsedReceipt extends Equatable {
   @override
   List<Object?> get props => [
     amount,
+    taxAmount,
     merchant,
     date,
     receiptNumber,
@@ -66,7 +71,7 @@ class ParsedReceipt extends Equatable {
 
   @override
   String toString() {
-    return 'ParsedReceipt(amount: $amount ₸, merchant: $merchant, '
+    return 'ParsedReceipt(amount: $amount ₸, tax: $taxAmount ₸, merchant: $merchant, '
         'date: $date, source: ${detectedSource.displayName}, '
         'confidence: ${(confidence * 100).toStringAsFixed(0)}%)';
   }

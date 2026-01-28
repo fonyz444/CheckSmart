@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/app_theme.dart';
 import '../../../core/constants.dart';
 import '../../transactions/data/transaction_repository.dart';
 import '../../transactions/domain/transaction_entity.dart';
@@ -367,7 +368,7 @@ class _MonthlyExpensesPieChartState
         key = t.category.name;
         name = t.category.displayName;
         emoji = t.category.emoji;
-        color = _getCategoryColor(t.category);
+        color = AppTheme.getCategoryColor(t.category);
       }
 
       categoryTotals[key] = (categoryTotals[key] ?? 0) + t.amount;
@@ -533,21 +534,6 @@ class _MonthlyExpensesPieChartState
         badgePositionPercentageOffset: 1.3,
       );
     });
-  }
-
-  Color _getCategoryColor(ExpenseCategory category) {
-    const colorMap = {
-      ExpenseCategory.food: Color(0xFF3B82F6),
-      ExpenseCategory.transport: Color(0xFF06B6D4),
-      ExpenseCategory.utilities: Color(0xFFEC4899),
-      ExpenseCategory.shopping: Color(0xFF8B5CF6),
-      ExpenseCategory.entertainment: Color(0xFF10B981),
-      ExpenseCategory.health: Color(0xFFEF4444),
-      ExpenseCategory.education: Color(0xFFF59E0B),
-      ExpenseCategory.transfer: Color(0xFFF97316),
-      ExpenseCategory.other: Color(0xFF6B7280),
-    };
-    return colorMap[category] ?? const Color(0xFF6B7280);
   }
 }
 

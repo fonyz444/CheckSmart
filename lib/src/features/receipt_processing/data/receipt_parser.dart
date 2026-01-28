@@ -36,6 +36,7 @@ class ReceiptParser {
     final merchant = _extractMerchant(rawText);
     final date = _extractDate(rawText);
     final receiptNumber = _extractReceiptNumber(rawText);
+    final taxAmount = _extractTax(rawText, totalAmount: amount);
 
     // Calculate confidence (0.0 - 1.0)
     final confidence = _calculateConfidence(
@@ -43,6 +44,7 @@ class ReceiptParser {
       merchant: merchant,
       date: date,
       receiptNumber: receiptNumber,
+      taxAmount: taxAmount,
     );
 
     // Suggest category based on keywords
@@ -57,6 +59,7 @@ class ReceiptParser {
       rawText: rawText,
       confidence: confidence,
       suggestedCategory: suggestedCategory,
+      taxAmount: taxAmount,
     );
   }
 
@@ -296,6 +299,73 @@ class ReceiptParser {
         return amount;
       }
     }
+    return null;
+  }
+
+  /// Extracts the tax/VAT amount (НДС)
+  /// [totalAmount] - Optional total transaction amount for validation
+  double? _extractTax(String text, {double? totalAmount}) {
+    // VAT is usually 12% in Kazakhstan, but OCR might miss the % sign or it might be another rate
+    // Patterns:
+    // 1. "НДС 12%" or "ҚҚС 12%" followed by amount
+    // 2. "в т.ч. НДС/ҚҚС" followed by amount
+    // 3. "ККС = 57.24" (Just the label and amount)
+    // 4. "16.00% \n 57.24" (Percentage line followed by amount)
+
+    final taxPatterns = [
+      // Priority 1: Specific "12%" pattern
+      RegExp(
+        r'(?:НДС|HDC|ҚҚС|KKC|ККС|Tax)\s*12\s*%\s*[:=]?\s*(\d{1,3}(?:[\s,]\d{3})*(?:[.,]\d{2})?)',
+        caseSensitive: false,
+      ),
+
+      // Priority 2: "в том числе" pattern
+      RegExp(
+        r'в\s*т\.?ч\.?\s*(?:НДС|HDC|ҚҚС|KKC|ККС).*?(\d{1,3}(?:[\s,]\d{3})*(?:[.,]\d{2})?)',
+        caseSensitive: false,
+      ),
+
+      // Priority 3: Percentage followed by amount (e.g. "16.00% \n -57.24")
+      // Catches case where label is missing but % is visible.
+      // matches "%" -> garbage (non-alphanumeric, up to 20 chars) -> number
+      // UPDATED: regex to capture full number even if no decimals "5724"
+      RegExp(
+        r'(?:12|16|20)[.,]\d{2}\s*%\s*[^0-9a-zA-Z]{0,20}\s*(\d+(?:[\s,]\d{3})*(?:[.,]\d+)?)',
+        caseSensitive: false,
+      ),
+
+      // Priority 4: Broad pattern "ККС ... =" or just "ККС [amount]" (allowing newlines)
+      // Matches "ККС" followed by optional non-digits (newlines etc) then optional = then amount
+      // We limit the gap to ~30 chars to avoid false positives
+      RegExp(
+        r'(?:НДС|HDC|ҚҚС|KKC|ККС)(?:[^0-9]{0,30})[:=]?\s*(\d{1,3}(?:[\s,]\d{3})*(?:[.,]\d{2})?)',
+        caseSensitive: false,
+      ),
+    ];
+
+    for (final pattern in taxPatterns) {
+      final match = pattern.firstMatch(text);
+      if (match != null) {
+        final cleaned = _cleanAmountString(match.group(1) ?? '');
+        var amount = double.tryParse(cleaned);
+
+        // Sanity check: Tax cannot be larger than total amount
+        // If tax is huge, it might be missing a decimal point (e.g. 5724 instead of 57.24)
+        if (amount != null && totalAmount != null && amount > totalAmount) {
+          if (amount / 100 < totalAmount) {
+            print(
+              'Tax amount $amount seems too large (Total: $totalAmount). Assuming missing decimal: ${amount / 100}',
+            );
+            amount = amount / 100;
+          }
+        }
+
+        if (amount != null && amount > 0) {
+          print('Found tax amount: $amount');
+          return amount;
+        }
+      }
+    }
 
     return null;
   }
@@ -480,20 +550,24 @@ class ReceiptParser {
     String? merchant,
     DateTime? date,
     String? receiptNumber,
+    double? taxAmount,
   }) {
     double score = 0.0;
 
     // Amount is worth 40% (most important)
     if (amount != null && amount > 0) score += 0.4;
 
-    // Merchant is worth 25%
-    if (merchant != null && merchant.isNotEmpty) score += 0.25;
+    // Merchant is worth 20%
+    if (merchant != null && merchant.isNotEmpty) score += 0.2;
 
-    // Date is worth 25%
-    if (date != null) score += 0.25;
+    // Date is worth 20%
+    if (date != null) score += 0.2;
 
     // Receipt number is worth 10%
     if (receiptNumber != null && receiptNumber.isNotEmpty) score += 0.1;
+
+    // Tax amount found adds confidence (10%)
+    if (taxAmount != null && taxAmount > 0) score += 0.1;
 
     return score;
   }

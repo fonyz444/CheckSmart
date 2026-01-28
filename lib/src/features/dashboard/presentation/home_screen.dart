@@ -822,6 +822,8 @@ class _ResultViewState extends ConsumerState<_ResultView> {
         widget.result.suggestedCategory as ExpenseCategory?;
     final category = suggestedCategory ?? ExpenseCategory.other;
 
+    final taxAmount = widget.result.taxAmount as double?;
+
     return Column(
       children: [
         // Success icon
@@ -845,6 +847,17 @@ class _ResultViewState extends ConsumerState<_ResultView> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        if (taxAmount != null && taxAmount > 0) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Налог: ${taxAmount.toStringAsFixed(2)} ₸',
+            style: const TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
 
         // Date only (merchant hidden)
@@ -891,12 +904,15 @@ class _ResultViewState extends ConsumerState<_ResultView> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    category.displayName,
-                    style: const TextStyle(
-                      color: Color(0xFF1A1A1A),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: Text(
+                      category.displayName,
+                      style: const TextStyle(
+                        color: Color(0xFF1A1A1A),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -1089,12 +1105,15 @@ class _CategoryChipSelectable extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                category.displayName,
-                style: TextStyle(
-                  color: const Color(0xFF1A1A1A),
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              Flexible(
+                child: Text(
+                  category.displayName,
+                  style: TextStyle(
+                    color: const Color(0xFF1A1A1A),
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

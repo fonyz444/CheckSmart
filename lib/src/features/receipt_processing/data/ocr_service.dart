@@ -108,9 +108,17 @@ class OcrService {
 
   /// Check if we should try Tesseract based on ML Kit result quality
   bool _shouldUseTesseract(String mlKitText) {
+    // Fast path: If text is long enough, assume it's valid (receipts usually have many lines)
+    if (mlKitText.length > 300) {
+      print(
+        'ML Kit text length > 300 (${mlKitText.length}), skipping Tesseract check',
+      );
+      return false;
+    }
+
     // Too short - probably missed text
-    if (mlKitText.length < 50) {
-      print('ML Kit text too short, trying Tesseract');
+    if (mlKitText.length < 30) {
+      print('ML Kit text too short (<30), trying Tesseract');
       return true;
     }
 
@@ -149,6 +157,19 @@ class OcrService {
       'магнум',
       'magnum',
       'small',
+      'фискал', // covers фискальный, фискалдық
+      'fiscal',
+      'жиыны', // Total in Kazakh
+      'тенге',
+      'теңге',
+      'kzt',
+      'bank',
+      'банк',
+      'market',
+      'маркет',
+      'shop',
+      'store',
+      'магазин',
     ];
     return keywords.any((kw) => lower.contains(kw));
   }

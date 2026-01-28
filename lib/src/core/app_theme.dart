@@ -28,6 +28,7 @@ class AppTheme {
     ExpenseCategory.entertainment: Color(0xFFA855F7), // Purple variant
     ExpenseCategory.health: Color(0xFF3B82F6), // Blue
     ExpenseCategory.education: Color(0xFF14B8A6), // Teal/Green
+    ExpenseCategory.taxes: Color(0xFF607D8B), // Blue Grey
     ExpenseCategory.transfer: Color(0xFF8B5CF6), // Purple
     ExpenseCategory.other: Color(0xFF6B7280), // Gray
   };

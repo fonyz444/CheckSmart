@@ -40,6 +40,7 @@ class TesseractOcrService {
       }
 
       // Copy traineddata files from assets
+      // Only copy if they don't exist or are empty (simple check)
       await _copyTrainedDataIfNeeded('rus.traineddata');
       await _copyTrainedDataIfNeeded('eng.traineddata');
 
@@ -57,15 +58,18 @@ class TesseractOcrService {
     final targetFile = File('$_tessdataPath/$filename');
 
     if (await targetFile.exists()) {
-      print('$filename already exists');
-      return;
+      final length = await targetFile.length();
+      if (length > 0) {
+        print('$filename already exists (${length} bytes) - skipping copy');
+        return;
+      }
     }
 
     try {
       print('Copying $filename from assets...');
       final data = await rootBundle.load('assets/tessdata/$filename');
       final bytes = data.buffer.asUint8List();
-      await targetFile.writeAsBytes(bytes);
+      await targetFile.writeAsBytes(bytes, flush: true);
       print('Copied $filename (${bytes.length} bytes)');
     } catch (e) {
       print('Failed to copy $filename: $e');
