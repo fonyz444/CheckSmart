@@ -307,7 +307,7 @@ class _AqshaAIAnalyzerCardState extends ConsumerState<_AqshaAIAnalyzerCard> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Нажмите "Analyze" для получения персонализированных советов по расходам от Aqsha AI.',
+            'Нажмите "Analyze" для получения персонализированных советов по расходам от CheckSmart.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -362,7 +362,7 @@ class _MonthlyExpensesPieChartState
             customCategories.where((c) => c.id == key).firstOrNull;
         name = customCat?.name ?? 'Custom';
         emoji = customCat?.emoji ?? '📁';
-        color = const Color(0xFF6C5CE7); // Custom category color
+        color = Color(customCat?.color ?? 0xFF6C5CE7); // Custom category color
       } else {
         key = t.category.name;
         name = t.category.displayName;
@@ -634,6 +634,21 @@ class _MonthComparisonChart extends StatelessWidget {
             aspectRatio: 1.5,
             child: LineChart(
               LineChartData(
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((spot) {
+                        return LineTooltipItem(
+                          spot.y.toStringAsFixed(0),
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,

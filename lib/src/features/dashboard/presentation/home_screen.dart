@@ -209,7 +209,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Text(
-                            'Aqsha AI',
+                            'CheckSmart',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 13,
@@ -348,7 +348,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             icon: customCat.emoji,
                             name: customCat.name,
                             amount: entry.value,
-                            color: const Color(0xFF6C5CE7),
+                            color: Color(customCat.color),
                           ),
                         );
                       }),
@@ -442,7 +442,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             icon: customCat.emoji,
                             name: customCat.name,
                             amount: entry.value,
-                            color: const Color(0xFF6C5CE7),
+                            color: Color(customCat.color),
                           ),
                         );
                       }),
@@ -978,7 +978,7 @@ class _ResultViewState extends ConsumerState<_ResultView> {
               // Custom categories
               ...customCategories.map((custom) {
                 return Material(
-                  color: const Color(0xFFF3F4F6),
+                  color: Color(custom.color).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
                     onTap:
@@ -1232,7 +1232,20 @@ class _CreateCategoryButton extends ConsumerWidget {
 
   void _showCreateDialog(BuildContext context, WidgetRef ref) {
     String selectedEmoji = '📦';
+    int selectedColor = 0xFF6C5CE7;
     final nameController = TextEditingController();
+
+    final List<int> availableColors = [
+      0xFF6C5CE7, // Purple
+      0xFFEF4444, // Red
+      0xFFF59E0B, // Orange
+      0xFF10B981, // Green
+      0xFF3B82F6, // Blue
+      0xFFEC4899, // Pink
+      0xFF8B5CF6, // Violet
+      0xFF6B7280, // Gray
+      0xFF1A1A1A, // Black
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -1277,15 +1290,13 @@ class _CreateCategoryButton extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Selected emoji preview
+                      // Selected preview
                       Center(
                         child: Container(
                           width: 64,
                           height: 64,
                           decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF6C5CE7,
-                            ).withValues(alpha: 0.15),
+                            color: Color(selectedColor).withOpacity(0.15),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -1312,17 +1323,85 @@ class _CreateCategoryButton extends ConsumerWidget {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF6C5CE7),
+                            borderSide: BorderSide(
+                              color: Color(selectedColor),
                               width: 2,
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 20),
+
+                      // Color selection
+                      const Text(
+                        'Цвет',
+                        style: TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 48,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: availableColors.length,
+                          separatorBuilder:
+                              (_, __) => const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            final colorValue = availableColors[index];
+                            final isSelected = colorValue == selectedColor;
+                            return GestureDetector(
+                              onTap:
+                                  () => setState(
+                                    () => selectedColor = colorValue,
+                                  ),
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Color(colorValue),
+                                  shape: BoxShape.circle,
+                                  border:
+                                      isSelected
+                                          ? Border.all(
+                                            color: Colors.white,
+                                            width: 3,
+                                            strokeAlign:
+                                                BorderSide.strokeAlignInside,
+                                          )
+                                          : null,
+                                  boxShadow:
+                                      isSelected
+                                          ? [
+                                            BoxShadow(
+                                              color: Color(
+                                                colorValue,
+                                              ).withOpacity(0.5),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ]
+                                          : null,
+                                ),
+                                child:
+                                    isSelected
+                                        ? const Icon(
+                                          Icons.check,
+                                          color: Colors.white,
+                                        )
+                                        : null,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
                       // Emoji label
                       const Text(
-                        'Выберите иконку',
+                        'Иконка',
                         style: TextStyle(
                           color: Color(0xFF6B7280),
                           fontSize: 14,
@@ -1350,15 +1429,13 @@ class _CreateCategoryButton extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color:
                                     isSelected
-                                        ? const Color(
-                                          0xFF6C5CE7,
-                                        ).withValues(alpha: 0.15)
+                                        ? Color(selectedColor).withOpacity(0.15)
                                         : const Color(0xFFF9FAFB),
                                 borderRadius: BorderRadius.circular(12),
                                 border:
                                     isSelected
                                         ? Border.all(
-                                          color: const Color(0xFF6C5CE7),
+                                          color: Color(selectedColor),
                                           width: 2,
                                         )
                                         : null,
@@ -1383,7 +1460,11 @@ class _CreateCategoryButton extends ConsumerWidget {
                             if (name.isNotEmpty) {
                               await ref
                                   .read(customCategoriesProvider.notifier)
-                                  .addCategory(name, selectedEmoji);
+                                  .addCategory(
+                                    name,
+                                    selectedEmoji,
+                                    selectedColor,
+                                  );
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1402,7 +1483,7 @@ class _CreateCategoryButton extends ConsumerWidget {
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6C5CE7),
+                            backgroundColor: Color(selectedColor),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(

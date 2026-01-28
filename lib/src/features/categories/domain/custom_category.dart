@@ -19,20 +19,29 @@ class CustomCategory extends HiveObject {
   @HiveField(3)
   final DateTime createdAt;
 
+  @HiveField(4)
+  final int color;
+
   CustomCategory({
     required this.id,
     required this.name,
     required this.emoji,
     required this.createdAt,
+    required this.color,
   });
 
   /// Factory to create new custom category
-  factory CustomCategory.create({required String name, required String emoji}) {
+  factory CustomCategory.create({
+    required String name,
+    required String emoji,
+    required int color,
+  }) {
     return CustomCategory(
       id: const Uuid().v4(),
       name: name,
       emoji: emoji,
       createdAt: DateTime.now(),
+      color: color,
     );
   }
 

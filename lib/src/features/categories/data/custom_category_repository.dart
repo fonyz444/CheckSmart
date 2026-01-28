@@ -25,8 +25,12 @@ class CustomCategoriesNotifier extends StateNotifier<List<CustomCategory>> {
   }
 
   /// Add a new custom category
-  Future<void> addCategory(String name, String emoji) async {
-    final category = CustomCategory.create(name: name, emoji: emoji);
+  Future<void> addCategory(String name, String emoji, int color) async {
+    final category = CustomCategory.create(
+      name: name,
+      emoji: emoji,
+      color: color,
+    );
     await _box?.add(category);
     state = [...state, category];
   }

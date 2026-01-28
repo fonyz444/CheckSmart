@@ -21,13 +21,14 @@ class CustomCategoryAdapter extends TypeAdapter<CustomCategory> {
       name: fields[1] as String,
       emoji: fields[2] as String,
       createdAt: fields[3] as DateTime,
+      color: fields[4] as int? ?? 0xFF6C5CE7,
     );
   }
 
   @override
   void write(BinaryWriter writer, CustomCategory obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class CustomCategoryAdapter extends TypeAdapter<CustomCategory> {
       ..writeByte(2)
       ..write(obj.emoji)
       ..writeByte(3)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(4)
+      ..write(obj.color);
   }
 
   @override
