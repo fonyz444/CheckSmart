@@ -37,6 +37,8 @@ void main() async {
   // Pre-open boxes for faster first access
   await Hive.openBox<TransactionEntity>(HiveBoxes.transactions);
   await Hive.openBox<BudgetLimit>('budget_limits');
+  await Hive.openBox(HiveBoxes.settings);
+  await Hive.openBox<CustomCategory>(HiveBoxes.customCategories);
 
   runApp(const CheckSmartAppWrapper());
 }
