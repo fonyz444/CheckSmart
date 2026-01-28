@@ -8,6 +8,7 @@ import '../../transactions/domain/transaction_entity.dart';
 import '../data/ai_repository.dart';
 import '../../budget/data/budget_limit_repository.dart';
 import '../../budget/domain/budget_limit.dart';
+import '../../categories/data/custom_category_repository.dart';
 
 /// Analytics screen matching the "Reports" design
 class AnalyticsScreen extends ConsumerWidget {
@@ -123,9 +124,13 @@ class _AqshaAIAnalyzerCardState extends ConsumerState<_AqshaAIAnalyzerCard> {
         for (var b in budgets) b.category.displayName: b.limitAmount,
       };
 
+      // Fetch custom categories
+      final customCategories = ref.read(customCategoriesProvider);
+
       final result = await repository.getSpendingAnalysis(
         widget.transactions,
         budgetLimits: budgetMap,
+        customCategories: customCategories,
       );
 
       if (mounted) {

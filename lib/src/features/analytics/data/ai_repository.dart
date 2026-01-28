@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../../transactions/domain/transaction_entity.dart';
+import '../../categories/domain/custom_category.dart';
 
 /// Provider for the AI Repository
 final aiRepositoryProvider = Provider<AiRepository>((ref) {
@@ -51,6 +52,7 @@ class AiRepository {
     List<TransactionEntity> transactions, {
     double? monthlyIncome,
     Map<String, double>? budgetLimits,
+    List<CustomCategory>? customCategories,
   }) async {
     // 1. Check API Configuration
     if (_apiKey.isEmpty) {
@@ -78,7 +80,12 @@ class AiRepository {
     }
 
     try {
-      final prompt = _buildPrompt(transactions, monthlyIncome, budgetLimits);
+      final prompt = _buildPrompt(
+        transactions,
+        monthlyIncome,
+        budgetLimits,
+        customCategories ?? [],
+      );
       final analysis = await _fetchWithRetry(prompt);
 
       // Update cache
@@ -104,6 +111,7 @@ class AiRepository {
     List<TransactionEntity> transactions,
     double? monthlyIncome,
     Map<String, double>? budgetLimits,
+    List<CustomCategory> customCategories,
   ) {
     final sb = StringBuffer();
     final now = DateTime.now();
@@ -121,7 +129,17 @@ class AiRepository {
     final categoryTotals = <String, double>{};
     for (var t in currentMonthData) {
       totalSpent = roundMoney(totalSpent + t.amount);
-      final catName = t.category.displayName;
+      // Use custom category name if available, otherwise use standard category
+      String catName;
+      if (t.customCategoryId != null) {
+        final customCat =
+            customCategories
+                .where((c) => c.id == t.customCategoryId)
+                .firstOrNull;
+        catName = customCat?.name ?? t.category.displayName;
+      } else {
+        catName = t.category.displayName;
+      }
       categoryTotals[catName] = roundMoney(
         (categoryTotals[catName] ?? 0) + t.amount,
       );

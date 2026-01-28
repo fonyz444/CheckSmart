@@ -29,6 +29,8 @@ final weeklyCategoryTotalsProvider = Provider<Map<ExpenseCategory, double>>((
       final totals = <ExpenseCategory, double>{};
 
       for (final t in transactions) {
+        // Skip transactions with custom categories - they are handled separately
+        if (t.customCategoryId != null) continue;
         if (t.date.isAfter(startDate) || _isSameDay(t.date, startDate)) {
           totals[t.category] = (totals[t.category] ?? 0) + t.amount;
         }
@@ -55,6 +57,8 @@ final monthlyCategoryTotalsProvider = Provider<Map<ExpenseCategory, double>>((
       final totals = <ExpenseCategory, double>{};
 
       for (final t in transactions) {
+        // Skip transactions with custom categories - they are handled separately
+        if (t.customCategoryId != null) continue;
         if (t.date.isAfter(startOfMonth) || _isSameDay(t.date, startOfMonth)) {
           totals[t.category] = (totals[t.category] ?? 0) + t.amount;
         }
