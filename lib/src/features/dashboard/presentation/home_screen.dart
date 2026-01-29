@@ -474,7 +474,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(height: 20),
                       const Text(
-                        'Нет отсканированных чеков',
+                        'No receipts scanned',
                         style: TextStyle(
                           color: Color(0xFF6B7280),
                           fontSize: 18,
@@ -483,7 +483,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Нажмите + чтобы отсканировать первый чек',
+                        'Tap + to scan your first receipt',
                         style: TextStyle(
                           color: Color(0xFF9CA3AF),
                           fontSize: 14,
@@ -529,7 +529,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   String _formatAmount(double amount) {
     final currencyFormat = NumberFormat.currency(
-      locale: 'ru_RU',
+      locale: 'en_US',
       symbol: '₸',
       decimalDigits: 0,
     );
@@ -622,7 +622,7 @@ class _TransactionCategoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(
-      locale: 'ru_RU',
+      locale: 'en_US',
       symbol: '₸',
       decimalDigits: 0,
     );
@@ -695,7 +695,7 @@ class _ScanOptionsSheet extends ConsumerWidget {
               const CircularProgressIndicator(color: Color(0xFF6C5CE7)),
               const SizedBox(height: 16),
               Text(
-                scanState.statusMessage ?? 'Обработка...',
+                scanState.statusMessage ?? 'Processing...',
                 style: const TextStyle(color: Color(0xFF6B7280)),
               ),
             ] else if (scanState.result != null) ...[
@@ -710,7 +710,7 @@ class _ScanOptionsSheet extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Сохранено: ${transaction.amount.toStringAsFixed(0)} ₸',
+                          'Saved: ${transaction.amount.toStringAsFixed(0)} ₸',
                         ),
                         backgroundColor: const Color(0xFF6C5CE7),
                       ),
@@ -730,7 +730,7 @@ class _ScanOptionsSheet extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Сохранено в "$categoryName": ${transaction.amount.toStringAsFixed(0)} ₸',
+                          'Saved in "$categoryName": ${transaction.amount.toStringAsFixed(0)} ₸',
                         ),
                         backgroundColor: const Color(0xFF6C5CE7),
                       ),
@@ -750,11 +750,11 @@ class _ScanOptionsSheet extends ConsumerWidget {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => controller.clear(),
-                child: const Text('Попробовать снова'),
+                child: const Text('Try Again'),
               ),
             ] else ...[
               const Text(
-                'Добавить чек',
+                'Add Receipt',
                 style: TextStyle(
                   color: Color(0xFF1A1A1A),
                   fontSize: 20,
@@ -764,22 +764,22 @@ class _ScanOptionsSheet extends ConsumerWidget {
               const SizedBox(height: 24),
               _ScanOption(
                 icon: Icons.camera_alt,
-                title: 'Камера',
-                subtitle: 'Сфотографировать чек',
+                title: 'Camera',
+                subtitle: 'Take a photo of receipt',
                 onTap: () => controller.scanFromCamera(),
               ),
               const SizedBox(height: 12),
               _ScanOption(
                 icon: Icons.photo_library,
-                title: 'Галерея',
-                subtitle: 'Выбрать фото',
+                title: 'Gallery',
+                subtitle: 'Select from gallery',
                 onTap: () => controller.scanFromGallery(),
               ),
               const SizedBox(height: 12),
               _ScanOption(
                 icon: Icons.picture_as_pdf,
-                title: 'PDF файл',
-                subtitle: 'Kaspi / Halyk выписка',
+                title: 'PDF File',
+                subtitle: 'Kaspi / Halyk statement',
                 onTap: () => controller.scanFromPdf(),
               ),
             ],
@@ -850,7 +850,7 @@ class _ResultViewState extends ConsumerState<_ResultView> {
         if (taxAmount != null && taxAmount > 0) ...[
           const SizedBox(height: 4),
           Text(
-            'Налог: ${taxAmount.toStringAsFixed(2)} ₸',
+            'Tax: ${taxAmount.toStringAsFixed(2)} ₸',
             style: const TextStyle(
               color: Color(0xFF6B7280),
               fontSize: 14,
@@ -882,7 +882,7 @@ class _ResultViewState extends ConsumerState<_ResultView> {
           child: Column(
             children: [
               const Text(
-                'Предложенная категория',
+                'Suggested Category',
                 style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
               ),
               const SizedBox(height: 8),
@@ -938,7 +938,7 @@ class _ResultViewState extends ConsumerState<_ResultView> {
               elevation: 0,
             ),
             child: const Text(
-              'Подтвердить',
+              'Confirm',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
@@ -958,8 +958,8 @@ class _ResultViewState extends ConsumerState<_ResultView> {
             children: [
               Text(
                 _showAllCategories
-                    ? 'Скрыть категории'
-                    : 'Выбрать другую категорию',
+                    ? 'Hide Categories'
+                    : 'Choose Other Category',
                 style: const TextStyle(color: Color(0xFF6B7280)),
               ),
               Icon(
@@ -1044,7 +1044,7 @@ class _ResultViewState extends ConsumerState<_ResultView> {
         TextButton(
           onPressed: widget.onCancel,
           child: const Text(
-            'Отмена',
+            'Cancel',
             style: TextStyle(color: Color(0xFF6B7280)),
           ),
         ),
@@ -1235,7 +1235,7 @@ class _CreateCategoryButton extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               const Text(
-                'Создать',
+                'Create',
                 style: TextStyle(
                   color: Color(0xFF1A1A1A),
                   fontSize: 14,
@@ -1301,7 +1301,7 @@ class _CreateCategoryButton extends ConsumerWidget {
                       const SizedBox(height: 20),
                       // Title
                       const Text(
-                        'Новая категория',
+                        'New Category',
                         style: TextStyle(
                           color: Color(0xFF1A1A1A),
                           fontSize: 20,
@@ -1332,7 +1332,7 @@ class _CreateCategoryButton extends ConsumerWidget {
                         controller: nameController,
                         autofocus: true,
                         decoration: InputDecoration(
-                          hintText: 'Название категории',
+                          hintText: 'Category Name',
                           hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                           filled: true,
                           fillColor: const Color(0xFFF9FAFB),
@@ -1353,7 +1353,7 @@ class _CreateCategoryButton extends ConsumerWidget {
 
                       // Color selection
                       const Text(
-                        'Цвет',
+                        'Color',
                         style: TextStyle(
                           color: Color(0xFF6B7280),
                           fontSize: 14,
@@ -1420,7 +1420,7 @@ class _CreateCategoryButton extends ConsumerWidget {
 
                       // Emoji label
                       const Text(
-                        'Иконка',
+                        'Icon',
                         style: TextStyle(
                           color: Color(0xFF6B7280),
                           fontSize: 14,
@@ -1489,7 +1489,7 @@ class _CreateCategoryButton extends ConsumerWidget {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Категория "$name" создана',
+                                      'Category "$name" created',
                                       style: const TextStyle(
                                         color: Colors.white,
                                       ),
@@ -1510,7 +1510,7 @@ class _CreateCategoryButton extends ConsumerWidget {
                             ),
                           ),
                           child: const Text(
-                            'Сохранить',
+                            'Save',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,

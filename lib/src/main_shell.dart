@@ -5,6 +5,9 @@ import 'core/constants.dart';
 import 'features/dashboard/presentation/home_screen.dart';
 import 'features/analytics/presentation/analytics_screen.dart';
 import 'features/transactions/presentation/transactions_screen.dart';
+import 'dart:async';
+import 'package:flutter/scheduler.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'features/settings/presentation/settings_screen.dart';
 import 'features/receipt_processing/presentation/receipt_scan_controller.dart';
 
@@ -18,6 +21,66 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   int _currentIndex = 0; // Start on Home
+  late StreamSubscription _intentDataStreamSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initShareIntent();
+  }
+
+  @override
+  void dispose() {
+    _intentDataStreamSubscription.cancel();
+    super.dispose();
+  }
+
+  void _initShareIntent() {
+    // For sharing images coming from outside the app while the app is in the memory
+    _intentDataStreamSubscription = ReceiveSharingIntent.instance
+        .getMediaStream()
+        .listen(
+          (List<SharedMediaFile> value) {
+            if (value.isNotEmpty) {
+              _handleSharedFile(value.first.path);
+            }
+          },
+          onError: (err) {
+            debugPrint("getIntentDataStream error: $err");
+          },
+        );
+
+    // For sharing images coming from outside the app while the app is closed
+    ReceiveSharingIntent.instance.getInitialMedia().then((
+      List<SharedMediaFile> value,
+    ) {
+      if (value.isNotEmpty) {
+        _handleSharedFile(value.first.path);
+      }
+    });
+  }
+
+  void _handleSharedFile(String path) {
+    // Ensure we are processing
+    final controller = ref.read(receiptScanControllerProvider.notifier);
+    controller.processSharedFile(path);
+
+    // Show the bottom sheet to display progress/result
+    // Using SchedulerBinding to ensure we have context
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (context) => const _ScanOptionsSheet(),
+        );
+      }
+    });
+  }
 
   final List<Widget> _screens = const [
     HomeScreen(),
@@ -52,7 +115,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                 _NavButton(
                   icon: Icons.home_outlined,
                   activeIcon: Icons.home,
-                  label: 'Главная',
+                  label: 'Home',
                   isActive: _currentIndex == 0,
                   onTap: () => setState(() => _currentIndex = 0),
                 ),
@@ -61,7 +124,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                 _NavButton(
                   icon: Icons.pie_chart_outline,
                   activeIcon: Icons.pie_chart,
-                  label: 'Аналитика',
+                  label: 'Analytics',
                   isActive: _currentIndex == 1,
                   onTap: () => setState(() => _currentIndex = 1),
                 ),
@@ -70,7 +133,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                 _NavButton(
                   icon: Icons.receipt_long_outlined,
                   activeIcon: Icons.receipt_long,
-                  label: 'Транзакции',
+                  label: 'Transactions',
                   isActive: _currentIndex == 2,
                   onTap: () => setState(() => _currentIndex = 2),
                 ),
@@ -79,7 +142,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                 _NavButton(
                   icon: Icons.settings_outlined,
                   activeIcon: Icons.settings,
-                  label: 'Настройки',
+                  label: 'Settings',
                   isActive: _currentIndex == 3,
                   onTap: () => setState(() => _currentIndex = 3),
                 ),
@@ -169,7 +232,7 @@ class _ScanOptionsSheet extends ConsumerWidget {
               const CircularProgressIndicator(color: Color(0xFF6C5CE7)),
               const SizedBox(height: 16),
               Text(
-                scanState.statusMessage ?? 'Обработка...',
+                scanState.statusMessage ?? 'Processing...',
                 style: const TextStyle(color: Color(0xFF6B7280)),
               ),
             ] else if (scanState.result != null) ...[
@@ -185,7 +248,7 @@ class _ScanOptionsSheet extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Сохранено: ${transaction.amount.toStringAsFixed(0)} ₸',
+                          'Saved: ${transaction.amount.toStringAsFixed(0)} ₸',
                         ),
                         backgroundColor: const Color(0xFF00D09C),
                       ),
@@ -207,11 +270,11 @@ class _ScanOptionsSheet extends ConsumerWidget {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => controller.clear(),
-                child: const Text('Попробовать снова'),
+                child: const Text('Try Again'),
               ),
             ] else ...[
               const Text(
-                'Добавить чек',
+                'Add Receipt',
                 style: TextStyle(
                   color: Color(0xFF1A1A1A),
                   fontSize: 20,
@@ -223,8 +286,8 @@ class _ScanOptionsSheet extends ConsumerWidget {
               // Camera option
               _ScanOption(
                 icon: Icons.camera_alt,
-                title: 'Камера',
-                subtitle: 'Сфотографировать чек',
+                title: 'Camera',
+                subtitle: 'Take a photo of receipt',
                 onTap: () => controller.scanFromCamera(),
               ),
               const SizedBox(height: 12),
@@ -232,8 +295,8 @@ class _ScanOptionsSheet extends ConsumerWidget {
               // Gallery option
               _ScanOption(
                 icon: Icons.photo_library,
-                title: 'Галерея',
-                subtitle: 'Выбрать фото',
+                title: 'Gallery',
+                subtitle: 'Select from gallery',
                 onTap: () => controller.scanFromGallery(),
               ),
               const SizedBox(height: 12),
@@ -241,8 +304,8 @@ class _ScanOptionsSheet extends ConsumerWidget {
               // PDF option
               _ScanOption(
                 icon: Icons.picture_as_pdf,
-                title: 'PDF файл',
-                subtitle: 'Kaspi / Halyk выписка',
+                title: 'PDF File',
+                subtitle: 'Kaspi / Halyk statement',
                 onTap: () => controller.scanFromPdf(),
               ),
             ],
@@ -278,7 +341,7 @@ class _ResultViewState extends State<_ResultView> {
   Widget build(BuildContext context) {
     final amount = widget.result.amount as double?;
     final date = widget.result.date as DateTime?;
-    final merchant = widget.result.merchant as String?;
+
     final suggestedCategory =
         widget.result.suggestedCategory as ExpenseCategory?;
     final category = suggestedCategory ?? ExpenseCategory.other;
@@ -309,11 +372,6 @@ class _ResultViewState extends State<_ResultView> {
         const SizedBox(height: 8),
 
         // Details
-        if (merchant != null)
-          Text(
-            merchant,
-            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 16),
-          ),
         if (date != null)
           Text(
             '${date.day}.${date.month}.${date.year}',
@@ -335,7 +393,7 @@ class _ResultViewState extends State<_ResultView> {
           child: Column(
             children: [
               const Text(
-                'Предложенная категория',
+                'Suggested Category',
                 style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
               ),
               const SizedBox(height: 8),
@@ -375,7 +433,7 @@ class _ResultViewState extends State<_ResultView> {
               elevation: 0,
             ),
             child: const Text(
-              'Подтвердить',
+              'Confirm',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
@@ -395,8 +453,8 @@ class _ResultViewState extends State<_ResultView> {
             children: [
               Text(
                 _showAllCategories
-                    ? 'Скрыть категории'
-                    : 'Выбрать другую категорию',
+                    ? 'Hide Categories'
+                    : 'Choose Other Category',
                 style: const TextStyle(color: Color(0xFF6B7280)),
               ),
               Icon(
@@ -433,7 +491,7 @@ class _ResultViewState extends State<_ResultView> {
         TextButton(
           onPressed: widget.onCancel,
           child: const Text(
-            'Отмена',
+            'Cancel',
             style: TextStyle(color: Color(0xFF6B7280)),
           ),
         ),

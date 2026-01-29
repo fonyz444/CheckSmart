@@ -92,7 +92,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
     try {
       state = state.copyWith(
         isProcessing: true,
-        statusMessage: 'Открытие камеры...',
+        statusMessage: 'Opening camera...',
         clearError: true,
         clearResult: true,
       );
@@ -111,7 +111,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
     } catch (e) {
       state = state.copyWith(
         isProcessing: false,
-        error: OcrExtractionFailure('Ошибка камеры: $e', originalError: e),
+        error: OcrExtractionFailure('Camera error: $e', originalError: e),
       );
     }
   }
@@ -121,7 +121,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
     try {
       state = state.copyWith(
         isProcessing: true,
-        statusMessage: 'Выбор изображения...',
+        statusMessage: 'Selecting image...',
         clearError: true,
         clearResult: true,
       );
@@ -141,7 +141,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
       state = state.copyWith(
         isProcessing: false,
         error: OcrExtractionFailure(
-          'Ошибка выбора файла: $e',
+          'File selection error: $e',
           originalError: e,
         ),
       );
@@ -150,12 +150,10 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
 
   /// Scans a receipt from a PDF file (Kaspi/Halyk export)
   Future<void> scanFromPdf() async {
-    String? tempImagePath;
-
     try {
       state = state.copyWith(
         isProcessing: true,
-        statusMessage: 'Выбор PDF файла...',
+        statusMessage: 'Selecting PDF file...',
         clearError: true,
         clearResult: true,
       );
@@ -173,11 +171,29 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
 
       final pdfPath = result.files.first.path;
       if (pdfPath == null) {
-        throw const FileOperationFailure('Не удалось получить путь к файлу');
+        throw const FileOperationFailure('Failed to get file path');
       }
 
+      await _processPdfFile(pdfPath);
+    } on ReceiptProcessingFailure catch (e) {
+      state = state.copyWith(isProcessing: false, error: e);
+    } catch (e) {
+      state = state.copyWith(
+        isProcessing: false,
+        error: FileOperationFailure(
+          'PDF processing error: $e',
+          originalError: e,
+        ),
+      );
+    }
+  }
+
+  /// Internal method to process a PDF file
+  Future<void> _processPdfFile(String pdfPath) async {
+    String? tempImagePath;
+    try {
       // Detect source from filename
-      final fileName = result.files.first.name.toLowerCase();
+      final fileName = pdfPath.split('/').last.toLowerCase();
       final sourceHint =
           fileName.contains('kaspi')
               ? ReceiptSource.pdfKaspi
@@ -186,21 +202,11 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
               : null;
 
       // Step 2: Convert PDF to image
-      state = state.copyWith(statusMessage: 'Обработка PDF...');
+      state = state.copyWith(statusMessage: 'Processing PDF...');
       tempImagePath = await _pdfService.renderPdfToImage(pdfPath);
 
       // Step 3: Process the image
       await _processImage(tempImagePath, sourceHint ?? ReceiptSource.pdfKaspi);
-    } on ReceiptProcessingFailure catch (e) {
-      state = state.copyWith(isProcessing: false, error: e);
-    } catch (e) {
-      state = state.copyWith(
-        isProcessing: false,
-        error: FileOperationFailure(
-          'Ошибка обработки PDF: $e',
-          originalError: e,
-        ),
-      );
     } finally {
       // Cleanup temp file
       if (tempImagePath != null) {
@@ -209,11 +215,32 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
     }
   }
 
+  /// Process a file shared from another app
+  Future<void> processSharedFile(String path) async {
+    state = state.copyWith(
+      isProcessing: true,
+      error: null,
+      statusMessage: 'Processing file...',
+    );
+
+    final extension = path.split('.').last.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'heic'].contains(extension)) {
+      await _processImage(path, ReceiptSource.camera);
+    } else if (extension == 'pdf') {
+      await _processPdfFile(path);
+    } else {
+      state = state.copyWith(
+        isProcessing: false,
+        error: const FileOperationFailure('Unsupported file format'),
+      );
+    }
+  }
+
   /// Internal method to process an image through OCR and parsing
   Future<void> _processImage(String imagePath, ReceiptSource source) async {
     try {
       // Run OCR
-      state = state.copyWith(statusMessage: 'Распознавание текста...');
+      state = state.copyWith(statusMessage: 'Recognizing text...');
       final rawText = await _ocrService.extractText(imagePath);
 
       // Debug: Log OCR result
@@ -228,14 +255,14 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
         state = state.copyWith(
           isProcessing: false,
           error: const OcrExtractionFailure(
-            'Не удалось распознать текст. Попробуйте сделать более чёткое фото.',
+            'Failed to recognize text. Please try taking a clearer photo.',
           ),
         );
         return;
       }
 
       // Parse the text
-      state = state.copyWith(statusMessage: 'Анализ чека...');
+      state = state.copyWith(statusMessage: 'Analyzing receipt...');
       final parsedReceipt = _parser.parse(rawText, sourceHint: source);
 
       // Debug: Log parsed result
@@ -255,7 +282,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
         state = state.copyWith(
           isProcessing: false,
           error: const ParsingFailure(
-            'Сумма не распознана. Попробуйте ввести вручную или сфотографировать ближе.',
+            'Amount not recognized. Please retry manual entry or take a closer photo.',
           ),
           result: parsedReceipt,
         );
@@ -278,7 +305,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
       print('========================');
       state = state.copyWith(
         isProcessing: false,
-        error: OcrExtractionFailure('Ошибка обработки: $e', originalError: e),
+        error: OcrExtractionFailure('Processing error: $e', originalError: e),
       );
     }
   }
@@ -331,7 +358,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
           receiptNumber: result.receiptNumber,
           rawOcrText: result.rawText,
           note:
-              'НДС/Налог с чека (Основная сумма: ${totalAmount.toStringAsFixed(0)})',
+              'VAT/Tax from receipt (Total: ${totalAmount.toStringAsFixed(0)})',
         );
 
         print('Transaction split: Net=$netAmount, Tax=$tax');
@@ -355,7 +382,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
       return mainTransaction;
     } catch (e) {
       state = state.copyWith(
-        error: StorageFailure('Ошибка сохранения: $e', originalError: e),
+        error: StorageFailure('Save error: $e', originalError: e),
       );
       return null;
     }

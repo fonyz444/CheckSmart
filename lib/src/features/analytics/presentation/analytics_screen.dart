@@ -33,7 +33,7 @@ class AnalyticsScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Отчеты',
+                      'Reports',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 28,
@@ -308,7 +308,7 @@ class _AqshaAIAnalyzerCardState extends ConsumerState<_AqshaAIAnalyzerCard> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Нажмите "Analyze" для получения персонализированных советов по расходам от CheckSmart.',
+            'Press "Analyze" to get personalized expense insights from CheckSmart.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -395,7 +395,7 @@ class _MonthlyExpensesPieChartState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Расходы за месяц',
+            'Monthly Expenses',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -476,7 +476,7 @@ class _MonthlyExpensesPieChartState
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Всего',
+                          'Total',
                           style: TextStyle(
                             fontSize: 14,
                             color: Color(0xFF6B7280),
@@ -596,7 +596,7 @@ class _MonthComparisonChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Этот месяц vs Прошлый',
+            'This Month vs Last Month',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -606,11 +606,11 @@ class _MonthComparisonChart extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              _LegendItem(color: const Color(0xFF6C5CE7), label: 'Этот месяц'),
+              _LegendItem(color: const Color(0xFF6C5CE7), label: 'This Month'),
               const SizedBox(width: 16),
               _LegendItem(
                 color: Colors.grey[300]!,
-                label: 'Прошлый',
+                label: 'Last Month',
                 textColor: Colors.grey[500],
               ),
             ],
@@ -630,11 +630,11 @@ class _MonthComparisonChart extends StatelessWidget {
 
                       return touchedSpots.map((spot) {
                         final isThisMonth = spot.barIndex == 1;
-                        final label = isThisMonth ? 'Этот: ' : 'Прошлый: ';
+                        final label = isThisMonth ? 'Current: ' : 'Previous: ';
                         final value = NumberFormat.currency(
                           symbol: '₸',
                           decimalDigits: 0,
-                          locale: 'ru_RU',
+                          locale: 'en_US',
                         ).format(spot.y);
 
                         return LineTooltipItem(

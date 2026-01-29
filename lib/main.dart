@@ -24,7 +24,7 @@ void main() async {
   await dotenv.load(fileName: ".env");
 
   // Initialize date formatting for Russian locale
-  await initializeDateFormatting('ru_RU', null);
+  await initializeDateFormatting('en_US', null);
 
   // Initialize Hive for local storage
   await Hive.initFlutter();

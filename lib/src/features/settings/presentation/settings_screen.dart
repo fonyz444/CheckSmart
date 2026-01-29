@@ -9,7 +9,7 @@ import 'manage_categories_screen.dart';
 /// Provider for user profile name
 final userProfileNameProvider = StateProvider<String>((ref) {
   final box = Hive.box(HiveBoxes.settings);
-  return box.get('user_name', defaultValue: 'Пользователь');
+  return box.get('user_name', defaultValue: 'User');
 });
 
 class SettingsScreen extends ConsumerWidget {
@@ -29,7 +29,7 @@ class SettingsScreen extends ConsumerWidget {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(24, 24, 24, 16),
                 child: Text(
-                  'Настройки',
+                  'Settings',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 28,
@@ -88,7 +88,7 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                             ),
                             const Text(
-                              'Нажмите для редактирования',
+                              'Tap to edit',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF9CA3AF),
@@ -120,8 +120,8 @@ class SettingsScreen extends ConsumerWidget {
                   children: [
                     _SettingsTile(
                       icon: Icons.category_outlined,
-                      title: 'Мои категории',
-                      subtitle: 'Управление пользовательскими категориями',
+                      title: 'My Categories',
+                      subtitle: 'Manage custom categories',
                       color: Colors.orange,
                       onTap: () {
                         Navigator.of(context).push(
@@ -135,19 +135,19 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     _SettingsTile(
                       icon: Icons.palette_outlined,
-                      title: 'Внешний вид',
-                      subtitle: 'Темная тема (в разработке)',
+                      title: 'Appearance',
+                      subtitle: 'Dark theme (in progress)',
                       color: Colors.purple,
                       onTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Функция в разработке')),
+                          const SnackBar(content: Text('Feature in progress')),
                         );
                       },
                     ),
                     const SizedBox(height: 12),
                     _SettingsTile(
                       icon: Icons.info_outline,
-                      title: 'О приложении',
+                      title: 'About',
                       subtitle: 'Версия 1.0.0',
                       color: Colors.blue,
                       onTap: () async {
@@ -163,12 +163,10 @@ class SettingsScreen extends ConsumerWidget {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text('Версия: ${info.version}'),
-                                      Text('Сборка: ${info.buildNumber}'),
+                                      Text('Version: ${info.version}'),
+                                      Text('Build: ${info.buildNumber}'),
                                       const SizedBox(height: 16),
-                                      const Text(
-                                        'Разработано с ❤️ для Казахстана',
-                                      ),
+                                      const Text('Made with ❤️ for Kazakhstan'),
                                     ],
                                   ),
                                   actions: [
@@ -202,23 +200,23 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Изменить имя'),
+            title: const Text('Edit Name'),
             content: TextField(
               controller: controller,
               decoration: const InputDecoration(
-                labelText: 'Ваше имя',
-                hintText: 'Введите имя',
+                labelText: 'Your Name',
+                hintText: 'Enter name',
               ),
               autofocus: true,
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Отмена'),
+                child: const Text('Cancel'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, controller.text),
-                child: const Text('Сохранить'),
+                child: const Text('Save'),
               ),
             ],
           ),

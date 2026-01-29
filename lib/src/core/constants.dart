@@ -22,16 +22,16 @@ abstract class HiveTypeIds {
 
 /// Default expense categories for Kazakhstan market
 enum ExpenseCategory {
-  food('Продукты', '🍔'),
-  transport('Транспорт', '🚗'),
-  utilities('Коммуналка', '💡'),
-  shopping('Покупки', '🛒'),
-  entertainment('Развлечения', '🎬'),
-  health('Здоровье', '💊'),
-  education('Образование', '📚'),
-  taxes('Налоги', '🏛️'),
-  transfer('Переводы', '💸'),
-  other('Другое', '📦');
+  food('Food', '🍔'),
+  transport('Transport', '🚗'),
+  utilities('Utilities', '💡'),
+  shopping('Shopping', '🛒'),
+  entertainment('Entertainment', '🎬'),
+  health('Health', '💊'),
+  education('Education', '📚'),
+  taxes('Taxes', '🏛️'),
+  transfer('Transfer', '💸'),
+  other('Other', '📦');
 
   final String displayName;
   final String emoji;
@@ -41,10 +41,10 @@ enum ExpenseCategory {
 
 /// Source of the receipt/transaction
 enum ReceiptSource {
-  camera('Камера'),
+  camera('Camera'),
   pdfKaspi('Kaspi PDF'),
   pdfHalyk('Halyk PDF'),
-  manual('Вручную');
+  manual('Manual');
 
   final String displayName;
 
