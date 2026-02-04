@@ -8,6 +8,7 @@ import 'src/core/constants.dart';
 import 'src/features/transactions/domain/transaction_entity.dart';
 import 'src/features/budget/domain/budget_limit.dart';
 import 'src/features/categories/domain/custom_category.dart';
+import 'src/features/income/domain/income_entity.dart';
 
 /// Application entry point
 ///
@@ -39,6 +40,7 @@ void main() async {
   await Hive.openBox<BudgetLimit>('budget_limits');
   await Hive.openBox(HiveBoxes.settings);
   await Hive.openBox<CustomCategory>(HiveBoxes.customCategories);
+  await Hive.openBox<IncomeEntity>(HiveBoxes.income);
 
   runApp(const CheckSmartAppWrapper());
 }
@@ -75,6 +77,11 @@ void _registerHiveAdapters() {
   // CustomCategory adapter
   if (!Hive.isAdapterRegistered(HiveTypeIds.customCategory)) {
     Hive.registerAdapter(CustomCategoryAdapter());
+  }
+
+  // IncomeEntity adapter
+  if (!Hive.isAdapterRegistered(HiveTypeIds.income)) {
+    Hive.registerAdapter(IncomeEntityAdapter());
   }
 }
 
@@ -172,5 +179,46 @@ class ReceiptSourceAdapter extends TypeAdapter<ReceiptSource> {
   @override
   void write(BinaryWriter writer, ReceiptSource obj) {
     writer.writeInt(obj.index);
+  }
+}
+
+/// Hive adapter for IncomeEntity
+class IncomeEntityAdapter extends TypeAdapter<IncomeEntity> {
+  @override
+  final int typeId = HiveTypeIds.income;
+
+  @override
+  IncomeEntity read(BinaryReader reader) {
+    final fields = <int, dynamic>{};
+    final numOfFields = reader.readByte();
+    for (var i = 0; i < numOfFields; i++) {
+      fields[reader.readByte()] = reader.read();
+    }
+    return IncomeEntity(
+      id: fields[0] as String,
+      amount: fields[1] as double,
+      source: fields[2] as String,
+      date: fields[3] as DateTime,
+      description: fields[4] as String?,
+      createdAt: fields[5] as DateTime,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, IncomeEntity obj) {
+    writer
+      ..writeByte(6)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.amount)
+      ..writeByte(2)
+      ..write(obj.source)
+      ..writeByte(3)
+      ..write(obj.date)
+      ..writeByte(4)
+      ..write(obj.description)
+      ..writeByte(5)
+      ..write(obj.createdAt);
   }
 }

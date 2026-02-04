@@ -204,4 +204,29 @@ class TransactionRepository {
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
+
+  /// Gets total spending for a custom category within a date range
+  Future<double> getTotalByCustomCategory(
+    String customCategoryId, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final box = await _getBox();
+
+    final now = DateTime.now();
+    final start = startDate ?? DateTime(now.year, now.month, 1);
+    final end = endDate ?? now;
+
+    double total = 0.0;
+    for (final t in box.values) {
+      if (t.customCategoryId == customCategoryId) {
+        final date = t.date;
+        if ((date.isAfter(start) || _isSameDay(date, start)) &&
+            (date.isBefore(end) || _isSameDay(date, end))) {
+          total = _roundMoney(total + t.amount);
+        }
+      }
+    }
+    return total;
+  }
 }

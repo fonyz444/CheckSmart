@@ -67,13 +67,14 @@ class BudgetLimitAdapter extends TypeAdapter<BudgetLimit> {
       period: fields[3] as BudgetPeriod,
       createdAt: fields[4] as DateTime,
       isActive: fields[5] as bool,
+      customCategoryId: fields[6] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, BudgetLimit obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -85,7 +86,9 @@ class BudgetLimitAdapter extends TypeAdapter<BudgetLimit> {
       ..writeByte(4)
       ..write(obj.createdAt)
       ..writeByte(5)
-      ..write(obj.isActive);
+      ..write(obj.isActive)
+      ..writeByte(6)
+      ..write(obj.customCategoryId);
   }
 
   @override

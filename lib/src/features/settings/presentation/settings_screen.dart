@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/constants.dart';
+import '../../budget/presentation/budget_settings_screen.dart';
 import 'manage_categories_screen.dart';
 
 /// Provider for user profile name
@@ -128,6 +129,20 @@ class SettingsScreen extends ConsumerWidget {
                           MaterialPageRoute(
                             builder:
                                 (context) => const ManageCategoriesScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _SettingsTile(
+                      icon: Icons.account_balance_wallet_outlined,
+                      title: 'Budget & Income',
+                      subtitle: 'Manage income and spending limits',
+                      color: const Color(0xFF6C5CE7),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const BudgetSettingsScreen(),
                           ),
                         );
                       },

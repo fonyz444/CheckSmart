@@ -10,6 +10,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../../transactions/domain/transaction_entity.dart';
 import '../../categories/domain/custom_category.dart';
+import '../domain/ai_analysis_result.dart';
 
 /// Provider for the AI Repository
 final aiRepositoryProvider = Provider<AiRepository>((ref) {
@@ -28,27 +29,41 @@ class AiRepository {
   static String get _apiKey => dotenv.env['GROQ_API_KEY'] ?? '';
 
   // Caching variables
-  String? _cachedAnalysis;
+  AiAnalysisResult? _cachedAnalysis;
   DateTime? _cacheTime;
   int? _cacheDataHash;
 
-  /// Generates a robust hash to detect data changes
-  int _generateDataHash(List<TransactionEntity> transactions) {
-    if (transactions.isEmpty) return 0;
-
-    return Object.hashAll(
-      transactions.map(
-        (t) => Object.hash(
-          t.id,
-          t.amount,
-          t.category,
-          t.date.millisecondsSinceEpoch,
+  /// Generates a robust hash based on the data that goes into the prompt.
+  int _generateDataHash({
+    required List<TransactionEntity> monthTx,
+    double? monthlyIncome,
+    Map<String, double>? budgetLimits,
+    List<CustomCategory>? customCategories,
+  }) {
+    return Object.hash(
+      monthlyIncome ?? 0,
+      Object.hashAll(
+        budgetLimits?.entries.map((e) => Object.hash(e.key, e.value)) ??
+            const [],
+      ),
+      Object.hashAll(
+        customCategories?.map((c) => Object.hash(c.id, c.name)) ?? const [],
+      ),
+      Object.hashAll(
+        monthTx.map(
+          (t) => Object.hash(
+            t.id,
+            t.amount,
+            t.category,
+            t.customCategoryId,
+            t.date.millisecondsSinceEpoch,
+          ),
         ),
       ),
     );
   }
 
-  Future<String> getSpendingAnalysis(
+  Future<AiAnalysisResult> getSpendingAnalysis(
     List<TransactionEntity> transactions, {
     double? monthlyIncome,
     Map<String, double>? budgetLimits,
@@ -56,21 +71,49 @@ class AiRepository {
   }) async {
     // 1. Check API Configuration
     if (_apiKey.isEmpty) {
-      return 'Ошибка конфигурации: API ключ не найден. Проверьте файл .env';
+      return AiAnalysisResult(
+        insights: [],
+        summary: 'Ошибка конфигурации: API ключ не найден. Проверьте файл .env',
+        generatedAt: DateTime.now(),
+      );
     }
 
-    if (transactions.isEmpty) {
-      return 'Нет данных о транзакциях для анализа.';
+    final now = DateTime.now();
+    final currentMonthData =
+        transactions
+            .where((t) => t.date.year == now.year && t.date.month == now.month)
+            .toList();
+
+    if (currentMonthData.isEmpty) {
+      return AiAnalysisResult(
+        insights: [],
+        summary: 'Нет данных о транзакциях за текущий месяц.',
+        generatedAt: DateTime.now(),
+      );
     }
 
-    // 2. Check Internet Connectivity
+    // 2. Check Internet Connectivity (UX hint, not a guarantee)
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult.contains(ConnectivityResult.none)) {
-      return 'Нет подключения к интернету. AI анализ недоступен в офлайн-режиме.';
+      // Return cached data if available, otherwise show offline message
+      if (_cachedAnalysis != null) {
+        return _cachedAnalysis!;
+      }
+      return AiAnalysisResult(
+        insights: [],
+        summary:
+            'Нет подключения к интернету. AI анализ недоступен в офлайн-режиме.',
+        generatedAt: DateTime.now(),
+      );
     }
 
-    // 2. Check Cache
-    final currentHash = _generateDataHash(transactions);
+    // 3. Check Cache
+    final currentHash = _generateDataHash(
+      monthTx: currentMonthData,
+      monthlyIncome: monthlyIncome,
+      budgetLimits: budgetLimits,
+      customCategories: customCategories,
+    );
     if (_cachedAnalysis != null &&
         _cacheTime != null &&
         _cacheDataHash == currentHash &&
@@ -80,13 +123,15 @@ class AiRepository {
     }
 
     try {
-      final prompt = _buildPrompt(
-        transactions,
-        monthlyIncome,
-        budgetLimits,
-        customCategories ?? [],
+      final prompts = _buildPrompts(
+        now: now,
+        currentMonthData: currentMonthData,
+        allTransactions: transactions,
+        monthlyIncome: monthlyIncome,
+        budgetLimits: budgetLimits,
+        customCategories: customCategories ?? [],
       );
-      final analysis = await _fetchWithRetry(prompt);
+      final analysis = await _fetchWithRetry(prompts.$1, prompts.$2);
 
       // Update cache
       _cachedAnalysis = analysis;
@@ -98,29 +143,70 @@ class AiRepository {
       debugPrint('AI Analysis Error: $e\n$stackTrace');
 
       if (e.toString().contains('SocketException') || e is SocketException) {
-        return 'Ошибка сети. Проверьте интернет-соединение.';
+        return AiAnalysisResult(
+          insights: [],
+          summary: 'Ошибка сети. Проверьте интернет-соединение.',
+          generatedAt: DateTime.now(),
+        );
       }
       if (e.toString().contains('TimeoutException') || e is TimeoutException) {
-        return 'Превышено время ожидания. Попробуйте позже.';
+        return AiAnalysisResult(
+          insights: [],
+          summary: 'Превышено время ожидания. Попробуйте позже.',
+          generatedAt: DateTime.now(),
+        );
       }
-      return 'Не удалось получить анализ: ${e.toString().replaceAll('Exception:', '').trim()}';
+      return AiAnalysisResult(
+        insights: [],
+        summary:
+            'Не удалось получить анализ: ${e.toString().replaceAll('Exception:', '').trim()}',
+        generatedAt: DateTime.now(),
+      );
     }
   }
 
-  String _buildPrompt(
-    List<TransactionEntity> transactions,
+  /// Builds the system and user prompts.
+  /// Returns a record (systemPrompt, userPrompt).
+  (String, String) _buildPrompts({
+    required DateTime now,
+    required List<TransactionEntity> currentMonthData,
+    required List<TransactionEntity> allTransactions,
     double? monthlyIncome,
     Map<String, double>? budgetLimits,
-    List<CustomCategory> customCategories,
-  ) {
-    final sb = StringBuffer();
-    final now = DateTime.now();
+    required List<CustomCategory> customCategories,
+  }) {
+    // --- System Prompt ---
+    const systemPrompt = '''
+You are a personal finance analyst.
+The user is from Kazakhstan, currency is ₸ (tenge).
 
-    // Filter for current month
-    final currentMonthData =
-        transactions
-            .where((t) => t.date.year == now.year && t.date.month == now.month)
-            .toList();
+Your goal: provide 3-4 specific, measurable insights that can be acted upon within 7 days.
+
+Strict rules:
+- Do not make up facts. Use only the data provided.
+- No generic phrases like "try to save" without a specific action.
+- Each insight must contain numbers (₸, %, or days).
+- If data is insufficient, honestly say "not enough data" and suggest what to add (e.g., limits/income).
+- Write in English, be concise and to the point.
+
+Return the response strictly in JSON (no Markdown, no comments) in this format:
+{
+  "insights": [
+    {
+      "title": "brief 3-7 words",
+      "type": "tempo|overspend|budget|trend|category|income",
+      "observed": "what you noticed (1 sentence with numbers)",
+      "why": "why it matters (1 short sentence)",
+      "action7d": "what to do in 7 days (1 specific action)",
+      "impact": "expected effect (₸/%), or 'cannot estimate from data'"
+    }
+  ],
+  "summary": "1 sentence: overall conclusion/warning"
+}
+''';
+
+    // --- User Prompt (Data) ---
+    final sb = StringBuffer();
 
     // Helper to avoid floating-point precision errors
     double roundMoney(double v) => (v * 100).round() / 100;
@@ -129,7 +215,6 @@ class AiRepository {
     final categoryTotals = <String, double>{};
     for (var t in currentMonthData) {
       totalSpent = roundMoney(totalSpent + t.amount);
-      // Use custom category name if available, otherwise use standard category
       String catName;
       if (t.customCategoryId != null) {
         final customCat =
@@ -145,54 +230,81 @@ class AiRepository {
       );
     }
 
-    sb.writeln('Task: Provide 3-4 personalized financial tips in Russian.');
-    sb.writeln('Context: User is in Kazakhstan (Currency: Tenge ₸).');
+    // Time calculations
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final daysPassed = now.day;
+    final daysLeft = daysInMonth - daysPassed;
+    final avgDailySpend = daysPassed > 0 ? totalSpent / daysPassed : 0.0;
+    final projectedTotal = roundMoney(avgDailySpend * daysInMonth);
 
-    // 1. Financial Context
-    sb.writeln('\n--- Current Month Data ---');
-    sb.writeln('Total Spent: ${totalSpent.toStringAsFixed(0)} ₸');
+    sb.writeln('Analysis Data (current month only):');
+    sb.writeln('');
+    sb.writeln(
+      'Current Date: ${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+    );
+    sb.writeln('Days Passed in Month: $daysPassed');
+    sb.writeln('Days Left in Month: $daysLeft');
+    sb.writeln('');
+    sb.writeln('Summary:');
+    sb.writeln('- TotalSpent: ${totalSpent.toStringAsFixed(0)} ₸');
+    sb.writeln(
+      '- AverageDailySpend: ${avgDailySpend.toStringAsFixed(0)} ₸/day',
+    );
+    sb.writeln(
+      '- ProjectedTotalAtEndOfMonth: ${projectedTotal.toStringAsFixed(0)} ₸',
+    );
 
     if (monthlyIncome != null && monthlyIncome > 0) {
-      final spentPct = ((totalSpent / monthlyIncome) * 100).toStringAsFixed(1);
-      sb.writeln('Monthly Income: ${monthlyIncome.toStringAsFixed(0)} ₸');
-      sb.writeln('Spending Rate: $spentPct%');
-
-      if (totalSpent > monthlyIncome) {
-        sb.writeln('⚠️ ALERT: Spending exceeds income!');
+      final spentPct = ((totalSpent / monthlyIncome) * 100);
+      final incomeAlert = totalSpent > monthlyIncome;
+      sb.writeln('');
+      sb.writeln('Income:');
+      sb.writeln('- MonthlyIncome: ${monthlyIncome.toStringAsFixed(0)} ₸');
+      sb.writeln('- SpentPctOfIncome: ${spentPct.toStringAsFixed(1)}%');
+      sb.writeln('- IncomeAlert: $incomeAlert');
+      if (incomeAlert) {
+        sb.writeln('⚠️ WARNING: Spending exceeds income!');
       }
+    } else {
+      sb.writeln('');
+      sb.writeln('Income: Not specified');
     }
 
-    sb.writeln('Top Categories:');
+    sb.writeln('');
+    sb.writeln('Categories (top 5):');
     final sortedCats =
         categoryTotals.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
-
     for (var i = 0; i < (sortedCats.length > 5 ? 5 : sortedCats.length); i++) {
       final entry = sortedCats[i];
       sb.writeln('- ${entry.key}: ${entry.value.toStringAsFixed(0)} ₸');
     }
 
-    // 2. Budget Comparison
+    // Budget Comparison
     if (budgetLimits != null && budgetLimits.isNotEmpty) {
-      sb.writeln('\n--- Budget Analysis ---');
+      sb.writeln('');
+      sb.writeln('BudgetLimits:');
       categoryTotals.forEach((cat, spent) {
         if (budgetLimits.containsKey(cat)) {
           final limit = budgetLimits[cat]!;
           if (limit > 0) {
-            final pct = ((spent / limit) * 100).toStringAsFixed(0);
-            sb.writeln('Category "$cat": $spent / $limit ₸ ($pct%)');
+            final pct = ((spent / limit) * 100);
+            sb.writeln(
+              '- $cat: spent ${spent.toStringAsFixed(0)} ₸ / limit ${limit.toStringAsFixed(0)} ₸ / pct ${pct.toStringAsFixed(0)}%',
+            );
           }
         }
       });
+    } else {
+      sb.writeln('');
+      sb.writeln('BudgetLimits: Not set');
     }
 
-    // 3. Historical Comparison
-    // Fix: Correctly calculate previous month
+    // Historical Comparison
     final prevMonth = now.month == 1 ? 12 : now.month - 1;
     final prevYear = now.month == 1 ? now.year - 1 : now.year;
-
     final prevMonthData =
-        transactions
+        allTransactions
             .where((t) => t.date.year == prevYear && t.date.month == prevMonth)
             .toList();
 
@@ -203,29 +315,38 @@ class AiRepository {
       );
       if (prevTotal > 0) {
         final change = ((totalSpent - prevTotal) / prevTotal * 100);
-        final sign = change >= 0 ? '+' : '';
-        sb.writeln('\n--- Historical Context ---');
-        sb.writeln(
-          'Compared to last month: $sign${change.toStringAsFixed(1)}% (${prevTotal.toStringAsFixed(0)} ₸ -> ${totalSpent.toStringAsFixed(0)} ₸)',
-        );
+        sb.writeln('');
+        sb.writeln('History:');
+        sb.writeln('- LastMonthTotal: ${prevTotal.toStringAsFixed(0)} ₸');
+        sb.writeln('- ChangeVsLastMonthPct: ${change.toStringAsFixed(1)}%');
       }
+    } else {
+      sb.writeln('');
+      sb.writeln('History: No data for previous month');
     }
 
     sb.writeln('''
-\nGuidelines:
-1. Analyze the largest expenses and suggest specific ways to optimize them in Kazakhstan.
-2. If spending > income, give urgent advice.
-3. If specific categories are over budget, highlight them.
-4. If spending increased significantly from last month, ask why/warn.
-5. Use a friendly, encouraging professional tone.
-6. Return response in Russian. Use numbered list.
-7. RESPONSE LENGTH: Medium length. Provide 3-4 detailed but concise tips. Total approx 200-250 words. Avoid excessive pleasantries.
+
+Task:
+Generate 3-4 insights.
+Priorities (in this order):
+1) Urgent: if TotalSpent > MonthlyIncome or IncomeAlert=true.
+2) Budgets: if pct >= 80% for any category — must have separate insight.
+3) Spending pace: assess if current AverageDailySpend will lead to overspending by end of month (considering remaining days and income/budget if available).
+4) Trend: if ChangeVsLastMonthPct absolute value > 15%, create insight and carefully ask "why".
+5) Savings: suggest 1 practical step for KZ (limit delivery/taxi/coffee/subscriptions) — but only tied to top categories.
+
+Important:
+- If no income and no limits — create insight "add income/limits for precise control" and 2-3 insights on categories/pace.
 ''');
 
-    return sb.toString();
+    return (systemPrompt, sb.toString());
   }
 
-  Future<String> _fetchWithRetry(String prompt) async {
+  Future<AiAnalysisResult> _fetchWithRetry(
+    String systemPrompt,
+    String userPrompt,
+  ) async {
     for (int i = 0; i < _maxRetries; i++) {
       try {
         final response = await http
@@ -238,16 +359,47 @@ class AiRepository {
               body: jsonEncode({
                 'model': _model,
                 'messages': [
-                  {'role': 'user', 'content': prompt},
+                  {'role': 'system', 'content': systemPrompt},
+                  {'role': 'user', 'content': userPrompt},
                 ],
-                'temperature': 0.7,
+                'temperature': 0.5,
+                'max_completion_tokens': 600,
+                'response_format': {'type': 'json_object'},
+                'seed': 42,
               }),
             )
             .timeout(_requestTimeout);
 
         if (response.statusCode == 200) {
           final data = jsonDecode(utf8.decode(response.bodyBytes));
-          return data['choices'][0]['message']['content'] as String;
+          final content = data['choices'][0]['message']['content'] as String;
+
+          // Log raw response for debugging
+          debugPrint('=== Groq AI Raw Response ===');
+          debugPrint(content);
+          debugPrint('============================');
+
+          try {
+            final jsonContent = jsonDecode(content) as Map<String, dynamic>;
+            final result = AiAnalysisResult.fromJson(jsonContent);
+            if (result.isValid) {
+              return result;
+            }
+            // Invalid structure, throw to retry or return error
+            throw Exception('Invalid AI response structure');
+          } catch (parseError) {
+            debugPrint('JSON Parse Error: $parseError');
+            // If parsing fails on last attempt, return a fallback result
+            if (i == _maxRetries - 1) {
+              return AiAnalysisResult(
+                insights: [],
+                summary: 'Не удалось разобрать ответ AI. Попробуйте ещё раз.',
+                generatedAt: DateTime.now(),
+              );
+            }
+            // Otherwise, retry
+            continue;
+          }
         }
 
         if (response.statusCode == 429) {

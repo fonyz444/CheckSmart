@@ -4,13 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/app_theme.dart';
-import '../../../core/constants.dart';
+
 import '../../transactions/data/transaction_repository.dart';
 import '../../transactions/domain/transaction_entity.dart';
 import '../data/ai_repository.dart';
+import '../domain/ai_analysis_result.dart';
 import '../../budget/data/budget_limit_repository.dart';
 import '../../budget/domain/budget_limit.dart';
+import '../../budget/presentation/budget_settings_screen.dart';
 import '../../categories/data/custom_category_repository.dart';
+import '../../income/data/income_repository.dart';
 
 /// Analytics screen matching the "Reports" design
 class AnalyticsScreen extends ConsumerWidget {
@@ -129,10 +132,14 @@ class _AqshaAIAnalyzerCardState extends ConsumerState<_AqshaAIAnalyzerCard> {
       // Fetch custom categories
       final customCategories = ref.read(customCategoriesProvider);
 
+      // Fetch monthly income
+      final monthlyIncome = ref.read(monthlyIncomeProvider);
+
       final result = await repository.getSpendingAnalysis(
         widget.transactions,
         budgetLimits: budgetMap,
         customCategories: customCategories,
+        monthlyIncome: monthlyIncome,
       );
 
       if (mounted) {
@@ -151,7 +158,7 @@ class _AqshaAIAnalyzerCardState extends ConsumerState<_AqshaAIAnalyzerCard> {
     }
   }
 
-  void _showResult(String result) {
+  void _showResult(AiAnalysisResult result) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -161,8 +168,8 @@ class _AqshaAIAnalyzerCardState extends ConsumerState<_AqshaAIAnalyzerCard> {
       ),
       builder:
           (context) => DraggableScrollableSheet(
-            initialChildSize: 0.6,
-            maxChildSize: 0.9,
+            initialChildSize: 0.7,
+            maxChildSize: 0.95,
             minChildSize: 0.4,
             expand: false,
             builder:
@@ -199,15 +206,39 @@ class _AqshaAIAnalyzerCardState extends ConsumerState<_AqshaAIAnalyzerCard> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        result,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          height: 1.5,
-                          color: Color(0xFF2C2C2C),
+                      // Summary
+                      if (result.summary.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6C5CE7).withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            result.summary,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                              color: Color(0xFF2C2C2C),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
+                      const SizedBox(height: 20),
+                      // Insights
+                      if (result.insights.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            'Не удалось получить инсайты. Попробуйте позже.',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                        )
+                      else
+                        ...result.insights.map(
+                          (insight) => _InsightCard(insight: insight),
+                        ),
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -559,6 +590,165 @@ class _Badge extends StatelessWidget {
         ],
       ),
       child: Center(child: Text(emoji, style: const TextStyle(fontSize: 14))),
+    );
+  }
+}
+
+/// Card widget to display a single AI Insight.
+class _InsightCard extends StatelessWidget {
+  final AiInsight insight;
+  const _InsightCard({required this.insight});
+
+  IconData _getIcon() {
+    switch (insight.type) {
+      case AiInsightType.tempo:
+        return Icons.speed_outlined;
+      case AiInsightType.overspend:
+        return Icons.warning_amber_rounded;
+      case AiInsightType.budget:
+        return Icons.account_balance_wallet_outlined;
+      case AiInsightType.trend:
+        return Icons.trending_up_rounded;
+      case AiInsightType.category:
+        return Icons.category_outlined;
+      case AiInsightType.income:
+        return Icons.attach_money_rounded;
+      case AiInsightType.other:
+        return Icons.lightbulb_outline;
+    }
+  }
+
+  Color _getColor() {
+    switch (insight.type) {
+      case AiInsightType.tempo:
+        return const Color(0xFF3498DB);
+      case AiInsightType.overspend:
+        return const Color(0xFFE74C3C);
+      case AiInsightType.budget:
+        return const Color(0xFFF39C12);
+      case AiInsightType.trend:
+        return const Color(0xFF9B59B6);
+      case AiInsightType.category:
+        return const Color(0xFF1ABC9C);
+      case AiInsightType.income:
+        return const Color(0xFF2ECC71);
+      case AiInsightType.other:
+        return const Color(0xFF6C5CE7);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _getColor();
+    final isActionable =
+        insight.type == AiInsightType.income ||
+        insight.type == AiInsightType.budget;
+
+    return GestureDetector(
+      onTap:
+          isActionable
+              ? () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const BudgetSettingsScreen()),
+              )
+              : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(_getIcon(), color: color, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    insight.title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Observed
+            Text(
+              insight.observed,
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.4,
+                color: Color(0xFF4A4A4A),
+              ),
+            ),
+            // Action (highlighted)
+            if (insight.action7d.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle_outline, color: color, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        insight.action7d,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: color.withOpacity(0.9),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            // Impact
+            if (insight.impact.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Impact: ${insight.impact}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

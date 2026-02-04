@@ -145,7 +145,22 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  String _selectedPeriod = 'Jan 23 - Jan 29';
+  late String _selectedPeriod;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPeriod = _getCurrentWeekPeriod();
+  }
+
+  String _getCurrentWeekPeriod() {
+    final now = DateTime.now();
+    final weekDay = now.weekday;
+    final startOfWeek = now.subtract(Duration(days: weekDay - 1));
+    final endOfWeek = startOfWeek.add(const Duration(days: 6));
+    final dateFormat = DateFormat('MMM d', 'en');
+    return '${dateFormat.format(startOfWeek)} - ${dateFormat.format(endOfWeek)}';
+  }
 
   @override
   Widget build(BuildContext context) {

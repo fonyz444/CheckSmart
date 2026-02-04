@@ -59,6 +59,11 @@ class BudgetLimit extends Equatable {
   @HiveField(5)
   final bool isActive;
 
+  /// ID of custom category (if this limit is for a custom category)
+  /// When set, 'category' should be ExpenseCategory.other
+  @HiveField(6)
+  final String? customCategoryId;
+
   const BudgetLimit({
     required this.id,
     required this.category,
@@ -66,6 +71,7 @@ class BudgetLimit extends Equatable {
     required this.period,
     required this.createdAt,
     this.isActive = true,
+    this.customCategoryId,
   });
 
   /// Calculate percentage of limit used
@@ -96,6 +102,8 @@ class BudgetLimit extends Equatable {
     BudgetPeriod? period,
     DateTime? createdAt,
     bool? isActive,
+    String? customCategoryId,
+    bool clearCustomCategoryId = false,
   }) {
     return BudgetLimit(
       id: id ?? this.id,
@@ -104,6 +112,10 @@ class BudgetLimit extends Equatable {
       period: period ?? this.period,
       createdAt: createdAt ?? this.createdAt,
       isActive: isActive ?? this.isActive,
+      customCategoryId:
+          clearCustomCategoryId
+              ? null
+              : (customCategoryId ?? this.customCategoryId),
     );
   }
 
@@ -115,6 +127,7 @@ class BudgetLimit extends Equatable {
     period,
     createdAt,
     isActive,
+    customCategoryId,
   ];
 }
 

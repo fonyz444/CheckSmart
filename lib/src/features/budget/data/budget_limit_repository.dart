@@ -74,7 +74,21 @@ class BudgetLimitRepository {
   BudgetLimit? getByCategory(ExpenseCategory category) {
     try {
       return _box.values.firstWhere(
-        (limit) => limit.category == category && limit.isActive,
+        (limit) =>
+            limit.category == category &&
+            limit.customCategoryId == null &&
+            limit.isActive,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Get budget limit for a custom category
+  BudgetLimit? getByCustomCategory(String customCategoryId) {
+    try {
+      return _box.values.firstWhere(
+        (limit) => limit.customCategoryId == customCategoryId && limit.isActive,
       );
     } catch (_) {
       return null;
@@ -109,6 +123,32 @@ class BudgetLimitRepository {
     }
   }
 
+  /// Create or update budget limit for a custom category
+  Future<BudgetLimit> setCustomCategoryLimit({
+    required String customCategoryId,
+    required double amount,
+    required BudgetPeriod period,
+  }) async {
+    final existing = getByCustomCategory(customCategoryId);
+
+    if (existing != null) {
+      final updated = existing.copyWith(limitAmount: amount, period: period);
+      await _box.put(existing.id, updated);
+      return updated;
+    } else {
+      final limit = BudgetLimit(
+        id: _uuid.v4(),
+        category: ExpenseCategory.other,
+        customCategoryId: customCategoryId,
+        limitAmount: amount,
+        period: period,
+        createdAt: DateTime.now(),
+      );
+      await _box.put(limit.id, limit);
+      return limit;
+    }
+  }
+
   /// Delete budget limit
   Future<void> delete(String id) async {
     await _box.delete(id);
@@ -125,8 +165,9 @@ class BudgetLimitRepository {
   /// Get spending for a category within the budget period
   Future<double> getSpentInPeriod(
     ExpenseCategory category,
-    BudgetPeriod period,
-  ) async {
+    BudgetPeriod period, {
+    String? customCategoryId,
+  }) async {
     final transactionRepo = _ref.read(transactionRepositoryProvider);
     final now = DateTime.now();
 
@@ -147,6 +188,14 @@ class BudgetLimitRepository {
         break;
     }
 
+    if (customCategoryId != null) {
+      return await transactionRepo.getTotalByCustomCategory(
+        customCategoryId,
+        startDate: startDate,
+        endDate: now,
+      );
+    }
+
     return await transactionRepo.getTotalByCategory(
       category,
       startDate: startDate,
@@ -160,7 +209,11 @@ class BudgetLimitRepository {
     final progressList = <BudgetProgress>[];
 
     for (final limit in limits) {
-      final spent = await getSpentInPeriod(limit.category, limit.period);
+      final spent = await getSpentInPeriod(
+        limit.category,
+        limit.period,
+        customCategoryId: limit.customCategoryId,
+      );
       progressList.add(BudgetProgress(limit: limit, spent: spent));
     }
 
