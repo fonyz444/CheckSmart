@@ -16,31 +16,28 @@ final userProfileNameProvider = StateProvider<String>((ref) {
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userName = ref.watch(userProfileNameProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF5F5F7),
+        centerTitle: true,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          'Settings',
+          style: TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontWeight: FontWeight.bold,
+            fontSize: 17,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // Header
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(24, 24, 24, 16),
-                child: Text(
-                  'Settings',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
-              ),
-            ),
-
             // Profile Card
             SliverToBoxAdapter(
               child: Padding(

@@ -7,6 +7,7 @@ import '../../../core/app_theme.dart';
 import '../../transactions/data/transaction_repository.dart';
 import '../../receipt_processing/presentation/receipt_scan_controller.dart';
 import '../../categories/data/custom_category_repository.dart';
+import '../../income/data/income_repository.dart';
 
 /// Provider for category totals (weekly categories)
 final weeklyCategoryTotalsProvider = Provider<Map<ExpenseCategory, double>>((
@@ -275,6 +276,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+
+            // Income Summary Card
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: _IncomeSummaryCard(
+                  monthlyIncome: ref.watch(monthlyIncomeProvider),
+                  totalSpent: totalMonthlySpent,
                 ),
               ),
             ),
@@ -1602,6 +1614,127 @@ class _ScanOption extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Income Summary Card showing monthly income and remaining balance
+class _IncomeSummaryCard extends StatelessWidget {
+  final double monthlyIncome;
+  final double totalSpent;
+
+  const _IncomeSummaryCard({
+    required this.monthlyIncome,
+    required this.totalSpent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = monthlyIncome - totalSpent;
+    final currencyFormat = NumberFormat.currency(
+      locale: 'kk_KZ',
+      symbol: '₸',
+      decimalDigits: 0,
+    );
+
+    // Show nothing if no income is set
+    if (monthlyIncome <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C5CE7), Color(0xFF5B4FD5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C5CE7).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Monthly Income',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'This month',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            currencyFormat.format(monthlyIncome),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Icon(
+                remaining >= 0 ? Icons.trending_up : Icons.trending_down,
+                color:
+                    remaining >= 0
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFF87171),
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Remaining: ',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                currencyFormat.format(remaining.abs()),
+                style: TextStyle(
+                  color:
+                      remaining >= 0
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFF87171),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

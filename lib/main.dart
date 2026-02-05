@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'src/app.dart';
 import 'src/core/constants.dart';
+import 'src/core/services/notification_service.dart';
 import 'src/features/transactions/domain/transaction_entity.dart';
 import 'src/features/budget/domain/budget_limit.dart';
 import 'src/features/categories/domain/custom_category.dart';
@@ -41,6 +42,11 @@ void main() async {
   await Hive.openBox(HiveBoxes.settings);
   await Hive.openBox<CustomCategory>(HiveBoxes.customCategories);
   await Hive.openBox<IncomeEntity>(HiveBoxes.income);
+  await Hive.openBox(HiveBoxes.notificationHistory);
+
+  // Initialize notification service
+  await NotificationService.initialize();
+  await NotificationService.requestPermission();
 
   runApp(const CheckSmartAppWrapper());
 }

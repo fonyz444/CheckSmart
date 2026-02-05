@@ -35,6 +35,9 @@ dependencies:
   # UI & Charts
   community_charts_flutter: ^1.0.2
 
+  # Notifications
+  flutter_local_notifications: ^19.0.0
+
   # Utilities
   intl: ^0.20.1
   uuid: ^4.5.1

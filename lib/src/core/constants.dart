@@ -11,6 +11,7 @@ abstract class HiveBoxes {
   static const String settings = 'settings_box';
   static const String customCategories = 'custom_categories_box';
   static const String income = 'income_box';
+  static const String notificationHistory = 'notification_history_box';
 }
 
 /// Hive type IDs for type adapters
@@ -20,6 +21,7 @@ abstract class HiveTypeIds {
   static const int category = 2;
   static const int customCategory = 3;
   static const int income = 6;
+  static const int notificationRecord = 7;
 }
 
 /// Default expense categories for Kazakhstan market

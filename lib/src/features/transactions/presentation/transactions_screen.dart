@@ -17,9 +17,9 @@ class TransactionsScreen extends ConsumerWidget {
     final transactionsAsync = ref.watch(transactionsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F5F7),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF5F5F7),
         centerTitle: true,
         surfaceTintColor: Colors.transparent,
         title: const Text(

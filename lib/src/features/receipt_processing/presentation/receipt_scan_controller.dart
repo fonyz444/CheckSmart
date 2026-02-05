@@ -3,7 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../core/constants.dart';
-import '../../transactions/data/transaction_repository.dart';
+import '../../transactions/application/transaction_service.dart';
 import '../../transactions/domain/transaction_entity.dart';
 import '../data/pdf_service.dart';
 import '../data/ocr_service.dart';
@@ -49,7 +49,7 @@ final receiptScanControllerProvider =
         pdfService: ref.watch(pdfServiceProvider),
         ocrService: ref.watch(ocrServiceProvider),
         parser: ref.watch(receiptParserProvider),
-        transactionRepository: ref.watch(transactionRepositoryProvider),
+        transactionService: ref.watch(transactionServiceProvider),
       );
     });
 
@@ -72,7 +72,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
   final PdfService _pdfService;
   final OcrService _ocrService;
   final ReceiptParser _parser;
-  final TransactionRepository _transactionRepository;
+  final TransactionService _transactionService;
 
   final _imagePicker = ImagePicker();
 
@@ -80,11 +80,11 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
     required PdfService pdfService,
     required OcrService ocrService,
     required ReceiptParser parser,
-    required TransactionRepository transactionRepository,
+    required TransactionService transactionService,
   }) : _pdfService = pdfService,
        _ocrService = ocrService,
        _parser = parser,
-       _transactionRepository = transactionRepository,
+       _transactionService = transactionService,
        super(const ReceiptScanState());
 
   /// Scans a receipt using the camera
@@ -336,7 +336,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
         final netAmount = totalAmount - tax;
 
         // 1. Save Main Transaction (Net Amount)
-        mainTransaction = await _transactionRepository.add(
+        mainTransaction = await _transactionService.addTransaction(
           amount: netAmount,
           category: category,
           date: transactionDate,
@@ -349,7 +349,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
         );
 
         // 2. Save Tax Transaction
-        await _transactionRepository.add(
+        await _transactionService.addTransaction(
           amount: tax,
           category: ExpenseCategory.taxes, // Automatic tax category
           date: transactionDate,
@@ -364,7 +364,7 @@ class ReceiptScanController extends StateNotifier<ReceiptScanState> {
         print('Transaction split: Net=$netAmount, Tax=$tax');
       } else {
         // Option 2: No tax detected or invalid tax amount - save as single transaction
-        mainTransaction = await _transactionRepository.add(
+        mainTransaction = await _transactionService.addTransaction(
           amount: totalAmount,
           category: category,
           date: transactionDate,
